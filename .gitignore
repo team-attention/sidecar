@@ -32,3 +32,4 @@ coverage/
 *.temp
 
 .env
+CLAUDE.md
