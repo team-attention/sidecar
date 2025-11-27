@@ -43,7 +43,11 @@ export class SubmitCommentsUseCase {
             grouped[c.file].push(c);
         });
 
-        const parts: string[] = ['Here are my comments and questions based on the changes. Please review and respond:'];
+        const parts: string[] = [
+            'Here are my comments and questions based on the changes. Please review and respond:',
+            '',
+            'IMPORTANT: Before acting on any comment, you MUST first read the specified file and verify the exact content at the given line number(s). Do not rely on memory or prior context.',
+        ];
 
         for (const [file, fileComments] of Object.entries(grouped)) {
             parts.push(`\nFile: ${file}`);
