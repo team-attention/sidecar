@@ -6,7 +6,7 @@ Sidecar automatically detects AI coding tools like Claude Code, Codex, and Gemin
 
 ## Demo
 
-https://github.com/user-attachments/assets/ccf87aec-f933-427f-80f0-824cbddec9ea
+https://github.com/user-attachments/assets/b893de21-bf19-430f-97c6-0ff544a7ac25
 
 ## Features
 
