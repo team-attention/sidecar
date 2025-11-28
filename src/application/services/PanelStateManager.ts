@@ -123,6 +123,17 @@ export class PanelStateManager implements IPanelStateManager {
         this.render();
     }
 
+    markCommentsAsSubmitted(ids: string[]): void {
+        const idSet = new Set(ids);
+        this.state = {
+            ...this.state,
+            comments: this.state.comments.map(c =>
+                idSet.has(c.id) ? { ...c, isSubmitted: true } : c
+            ),
+        };
+        this.render();
+    }
+
     // ===== AI status =====
 
     setAIStatus(status: AIStatus): void {

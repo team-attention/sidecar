@@ -27,6 +27,9 @@ export class AddCommentUseCase implements IAddCommentUseCase {
             line: comment.line,
             endLine: comment.endLine,
             text: comment.text,
+            isSubmitted: comment.isSubmitted,
+            codeContext: comment.codeContext,
+            timestamp: comment.timestamp,
         });
 
         return comment;

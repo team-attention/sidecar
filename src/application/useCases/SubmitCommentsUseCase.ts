@@ -4,12 +4,14 @@ import { ICommentRepository } from '../ports/outbound/ICommentRepository';
 import { ITerminalPort } from '../ports/outbound/ITerminalPort';
 import { INotificationPort } from '../ports/outbound/INotificationPort';
 import { ISubmitCommentsUseCase } from '../ports/inbound/ISubmitCommentsUseCase';
+import { IPanelStateManager } from '../services/IPanelStateManager';
 
 export class SubmitCommentsUseCase implements ISubmitCommentsUseCase {
     constructor(
         private readonly commentRepository: ICommentRepository,
         private readonly terminalPort: ITerminalPort,
-        private readonly notificationPort: INotificationPort
+        private readonly notificationPort: INotificationPort,
+        private readonly panelStateManager: IPanelStateManager
     ) {}
 
     async execute(session: AISession | undefined): Promise<void> {
@@ -31,6 +33,7 @@ export class SubmitCommentsUseCase implements ISubmitCommentsUseCase {
 
         const ids = comments.map(c => c.id);
         await this.commentRepository.markAsSubmitted(ids);
+        this.panelStateManager.markCommentsAsSubmitted(ids);
 
         this.notificationPort.showInfo(
             `Sent ${comments.length} comments to ${session.displayName}`

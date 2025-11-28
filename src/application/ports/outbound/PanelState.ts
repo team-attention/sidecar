@@ -18,6 +18,9 @@ export interface CommentInfo {
     line: number;
     endLine?: number;
     text: string;
+    isSubmitted: boolean;
+    codeContext: string;
+    timestamp: number;
 }
 
 /**

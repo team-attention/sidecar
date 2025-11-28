@@ -337,6 +337,56 @@ export class SidecarPanelAdapter implements IPanelPort {
           border-left: 3px solid var(--vscode-textLink-foreground, #58a6ff);
           border-radius: 0 6px 6px 0;
           font-size: 12px;
+          position: relative;
+        }
+
+        .comment-item.submitted {
+          opacity: 0.7;
+          border-left-color: var(--vscode-descriptionForeground, #888);
+          background: var(--vscode-editor-inactiveSelectionBackground);
+        }
+
+        .comment-item.submitted .comment-status {
+          color: var(--vscode-testing-iconPassed, #238636);
+          font-size: 10px;
+          margin-left: auto;
+        }
+
+
+        .comment-tooltip {
+          display: none;
+          position: absolute;
+          background: var(--vscode-editorWidget-background);
+          border: 1px solid var(--vscode-panel-border);
+          border-radius: 6px;
+          padding: 8px 12px;
+          font-size: 11px;
+          max-width: 300px;
+          z-index: 100;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          left: 0;
+          top: 100%;
+          margin-top: 4px;
+        }
+
+        .comment-item:hover .comment-tooltip {
+          display: block;
+        }
+
+        .tooltip-code {
+          font-family: monospace;
+          background: var(--vscode-textCodeBlock-background);
+          padding: 4px 6px;
+          border-radius: 3px;
+          margin: 4px 0;
+          white-space: pre-wrap;
+          max-height: 100px;
+          overflow: auto;
+        }
+
+        .tooltip-time {
+          color: var(--vscode-descriptionForeground);
+          font-size: 10px;
         }
 
         .comment-meta {
@@ -344,6 +394,9 @@ export class SidecarPanelAdapter implements IPanelPort {
           color: var(--vscode-descriptionForeground);
           margin-bottom: 4px;
           font-family: monospace;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
 
         button {
@@ -806,14 +859,38 @@ export class SidecarPanelAdapter implements IPanelPort {
             return;
           }
 
-          list.innerHTML = comments.map(comment => {
+          // Reverse order so recent comments appear at the top
+          const sortedComments = [...comments].reverse();
+
+          list.innerHTML = sortedComments.map(comment => {
             const lineDisplay = comment.endLine
               ? \`\${comment.line}-\${comment.endLine}\`
               : comment.line;
+            const submittedClass = comment.isSubmitted ? 'submitted' : '';
+            const icon = comment.isSubmitted ? '✓' : '📝';
+            const statusLabel = comment.isSubmitted ? '<span class="comment-status">(submitted)</span>' : '';
+
+            // Format timestamp
+            const timeStr = comment.timestamp
+              ? new Date(comment.timestamp).toLocaleString()
+              : '';
+
+            // Tooltip for submitted comments
+            const tooltip = comment.isSubmitted && comment.codeContext
+              ? \`<div class="comment-tooltip">
+                  <div class="tooltip-code">\${escapeHtml(comment.codeContext)}</div>
+                  <div class="tooltip-time">\${timeStr}</div>
+                </div>\`
+              : '';
+
             return \`
-              <div class="comment-item">
-                <div class="comment-meta">\${comment.file}:\${lineDisplay}</div>
+              <div class="comment-item \${submittedClass}" data-id="\${comment.id}">
+                <div class="comment-meta">
+                  <span>\${icon} \${comment.file}:\${lineDisplay}</span>
+                  \${statusLabel}
+                </div>
                 <div>\${escapeHtml(comment.text)}</div>
+                \${tooltip}
               </div>
             \`;
           }).join('');
