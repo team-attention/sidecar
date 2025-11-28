@@ -1,8 +1,12 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { AISession, AIType } from '../../../domain/entities/AISession';
 import { ISnapshotRepository } from '../../../application/ports/outbound/ISnapshotRepository';
 import { ICaptureSnapshotsUseCase } from '../../../application/ports/inbound/ICaptureSnapshotsUseCase';
 import { IPanelStateManager } from '../../../application/services/IPanelStateManager';
+import { IGitPort } from '../../../application/ports/outbound/IGitPort';
+import { IFileGlobber } from '../../../application/ports/outbound/IFileGlobber';
+import { FileInfo } from '../../../application/ports/outbound/PanelState';
 import { VscodeTerminalGateway } from '../../outbound/gateways/VscodeTerminalGateway';
 import { SidecarPanelAdapter } from '../../outbound/presenters/SidecarPanelAdapter';
 
@@ -14,7 +18,9 @@ export class AIDetectionController {
         private readonly captureSnapshotsUseCase: ICaptureSnapshotsUseCase,
         private readonly snapshotRepository: ISnapshotRepository,
         private readonly terminalGateway: VscodeTerminalGateway,
-        private readonly getExtensionContext: () => vscode.ExtensionContext
+        private readonly getExtensionContext: () => vscode.ExtensionContext,
+        private readonly gitPort: IGitPort,
+        private readonly fileGlobber: IFileGlobber
     ) {}
 
     setPanelStateManager(panelStateManager: IPanelStateManager): void {
@@ -88,6 +94,7 @@ export class AIDetectionController {
 
     private async activateSidecar(type: AIType, terminal: vscode.Terminal): Promise<void> {
         const terminalId = this.getTerminalId(terminal);
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
         try {
             const config = vscode.workspace.getConfiguration('sidecar');
@@ -95,6 +102,10 @@ export class AIDetectionController {
             await this.captureSnapshotsUseCase.execute(includePatterns);
         } catch (error) {
             console.error('Failed to capture snapshots:', error);
+        }
+
+        if (workspaceRoot && this.panelStateManager) {
+            await this.captureBaseline(workspaceRoot);
         }
 
         await this.moveTerminalToSide();
@@ -137,6 +148,40 @@ export class AIDetectionController {
         }
     }
 
+    private async captureBaseline(workspaceRoot: string): Promise<void> {
+        try {
+            const config = vscode.workspace.getConfiguration('sidecar');
+            const includePatterns = config.get<string[]>('includeFiles', []);
+
+            const gitFiles = await this.gitPort.getUncommittedFiles(workspaceRoot);
+
+            let configFiles: string[] = [];
+            if (includePatterns.length > 0) {
+                const globResults = await Promise.all(
+                    includePatterns.map((pattern) => this.fileGlobber.glob(pattern, workspaceRoot))
+                );
+                const absolutePaths = globResults.flat();
+                configFiles = absolutePaths.map((absPath) =>
+                    path.relative(workspaceRoot, absPath)
+                );
+            }
+
+            const allPaths = new Set([...gitFiles, ...configFiles]);
+
+            const baselineFiles: FileInfo[] = Array.from(allPaths).map((filePath) => ({
+                path: filePath,
+                name: path.basename(filePath),
+                status: 'modified' as const,
+            }));
+
+            this.panelStateManager!.setBaseline(baselineFiles);
+
+            console.log(`Baseline captured: ${baselineFiles.length} files`);
+        } catch (error) {
+            console.error('Failed to capture baseline:', error);
+        }
+    }
+
     private handleCommandEnd(event: vscode.TerminalShellExecutionEndEvent): void {
         const terminalId = this.getTerminalId(event.terminal);
         const session = this.activeAISessions.get(terminalId);
@@ -157,9 +202,16 @@ export class AIDetectionController {
 
             if (this.activeAISessions.size === 0) {
                 this.snapshotRepository.clear();
-                vscode.window.showInformationMessage(
-                    'No active AI sessions. Sidecar panel will remain open.'
-                );
+
+                if (this.panelStateManager) {
+                    this.panelStateManager.reset();
+                }
+
+                if (SidecarPanelAdapter.currentPanel) {
+                    SidecarPanelAdapter.currentPanel.dispose();
+                }
+
+                console.log('AI session ended, panel closed');
             }
         }
     }

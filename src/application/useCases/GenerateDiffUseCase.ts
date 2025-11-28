@@ -29,7 +29,7 @@ export class GenerateDiffUseCase implements IGenerateDiffUseCase {
         }
 
         if (diffResult.hunks.length === 0) {
-            this.panelStateManager.removeFile(relativePath);
+            this.panelStateManager.removeSessionFile(relativePath);
             return;
         }
 

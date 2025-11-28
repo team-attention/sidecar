@@ -68,4 +68,30 @@ export class VscodeGitGateway implements IGitPort {
             );
         });
     }
+
+    async getUncommittedFiles(workspaceRoot: string): Promise<string[]> {
+        const isGit = await this.isGitRepository(workspaceRoot);
+        if (!isGit) return [];
+
+        return new Promise((resolve) => {
+            exec(
+                `cd "${workspaceRoot}" && git status --porcelain`,
+                { maxBuffer: 1024 * 1024 },
+                (error, stdout) => {
+                    if (error) {
+                        resolve([]);
+                        return;
+                    }
+
+                    const files = stdout
+                        .split('\n')
+                        .filter((line) => line.trim())
+                        .map((line) => line.substring(3).trim())
+                        .filter((file) => file.length > 0);
+
+                    resolve(files);
+                }
+            );
+        });
+    }
 }

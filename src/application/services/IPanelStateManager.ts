@@ -11,10 +11,20 @@ export interface IPanelStateManager {
     // State access
     getState(): PanelState;
 
-    // File operations (intent-level)
-    addFile(file: FileInfo): void;
-    removeFile(path: string): void;
+    // Session file operations
+    addSessionFile(file: FileInfo): void;
+    removeSessionFile(path: string): void;
     selectFile(path: string | null): void;
+
+    // Baseline operations
+    setBaseline(files: FileInfo[]): void;
+    isInBaseline(path: string): boolean;
+    moveToSession(path: string): void;
+    clearBaseline(): void;
+
+    // Toggle
+    toggleShowUncommitted(): void;
+    setShowUncommitted(show: boolean): void;
 
     // Diff operations
     showDiff(diff: DiffResult): void;

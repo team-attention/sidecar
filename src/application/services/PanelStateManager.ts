@@ -17,6 +17,7 @@ import { IPanelStateManager } from './IPanelStateManager';
 export class PanelStateManager implements IPanelStateManager {
     private state: PanelState;
     private panelPort: IPanelPort | null = null;
+    private baselineSet: Set<string> = new Set();
 
     constructor() {
         this.state = createInitialPanelState();
@@ -41,26 +42,25 @@ export class PanelStateManager implements IPanelStateManager {
         return { ...this.state };
     }
 
-    // ===== File operations =====
+    // ===== Session file operations =====
 
-    addFile(file: FileInfo): void {
-        const exists = this.state.files.some(f => f.path === file.path);
+    addSessionFile(file: FileInfo): void {
+        const exists = this.state.sessionFiles.some((f) => f.path === file.path);
         if (!exists) {
             this.state = {
                 ...this.state,
-                files: [...this.state.files, file],
+                sessionFiles: [...this.state.sessionFiles, file],
             };
             this.render();
         }
     }
 
-    removeFile(path: string): void {
-        const newFiles = this.state.files.filter(f => f.path !== path);
-        if (newFiles.length !== this.state.files.length) {
+    removeSessionFile(path: string): void {
+        const newFiles = this.state.sessionFiles.filter((f) => f.path !== path);
+        if (newFiles.length !== this.state.sessionFiles.length) {
             this.state = {
                 ...this.state,
-                files: newFiles,
-                // Clear diff if removed file was selected
+                sessionFiles: newFiles,
                 selectedFile: this.state.selectedFile === path ? null : this.state.selectedFile,
                 diff: this.state.diff?.file === path ? null : this.state.diff,
             };
@@ -73,6 +73,66 @@ export class PanelStateManager implements IPanelStateManager {
             this.state = {
                 ...this.state,
                 selectedFile: path,
+            };
+            this.render();
+        }
+    }
+
+    // ===== Baseline operations =====
+
+    setBaseline(files: FileInfo[]): void {
+        this.baselineSet = new Set(files.map((f) => f.path));
+        this.state = {
+            ...this.state,
+            uncommittedFiles: files,
+        };
+        this.render();
+    }
+
+    isInBaseline(path: string): boolean {
+        return this.baselineSet.has(path);
+    }
+
+    moveToSession(path: string): void {
+        if (!this.isInBaseline(path)) return;
+
+        const file = this.state.uncommittedFiles.find((f) => f.path === path);
+        if (!file) return;
+
+        this.baselineSet.delete(path);
+
+        this.state = {
+            ...this.state,
+            uncommittedFiles: this.state.uncommittedFiles.filter((f) => f.path !== path),
+            sessionFiles: [...this.state.sessionFiles, file],
+        };
+        this.render();
+    }
+
+    clearBaseline(): void {
+        this.baselineSet.clear();
+        this.state = {
+            ...this.state,
+            uncommittedFiles: [],
+        };
+        this.render();
+    }
+
+    // ===== Toggle =====
+
+    toggleShowUncommitted(): void {
+        this.state = {
+            ...this.state,
+            showUncommitted: !this.state.showUncommitted,
+        };
+        this.render();
+    }
+
+    setShowUncommitted(show: boolean): void {
+        if (this.state.showUncommitted !== show) {
+            this.state = {
+                ...this.state,
+                showUncommitted: show,
             };
             this.render();
         }
@@ -136,6 +196,7 @@ export class PanelStateManager implements IPanelStateManager {
     // ===== Reset =====
 
     reset(): void {
+        this.baselineSet.clear();
         this.state = createInitialPanelState();
         this.render();
     }

@@ -85,7 +85,9 @@ export function activate(context: vscode.ExtensionContext) {
         captureSnapshotsUseCase,
         snapshotRepository,
         terminalGateway,
-        () => extensionContext
+        () => extensionContext,
+        gitGateway,
+        fileGlobber
     );
     aiDetectionController.setPanelStateManager(panelStateManager);
 
@@ -114,7 +116,8 @@ export function activate(context: vscode.ExtensionContext) {
                 () => {
                     const session = aiDetectionController.getActiveSession();
                     submitCommentsUseCase.execute(session);
-                }
+                },
+                panelStateManager
             );
 
             // Clean up when panel is disposed

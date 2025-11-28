@@ -32,7 +32,9 @@ export interface AIStatus {
  * Complete panel state - single source of truth for UI
  */
 export interface PanelState {
-    files: FileInfo[];
+    sessionFiles: FileInfo[];
+    uncommittedFiles: FileInfo[];
+    showUncommitted: boolean;
     selectedFile: string | null;
     diff: DiffResult | null;
     comments: CommentInfo[];
@@ -44,7 +46,9 @@ export interface PanelState {
  */
 export function createInitialPanelState(): PanelState {
     return {
-        files: [],
+        sessionFiles: [],
+        uncommittedFiles: [],
+        showUncommitted: false,
         selectedFile: null,
         diff: null,
         comments: [],

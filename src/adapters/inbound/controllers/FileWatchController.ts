@@ -103,19 +103,27 @@ export class FileWatchController {
                 const relativePath = vscode.workspace.asRelativePath(uri);
                 const fileName = path.basename(relativePath);
                 const currentState = this.panelStateManager.getState();
-                const isFirstFile = currentState.files.length === 0;
+
+                if (this.panelStateManager.isInBaseline(relativePath)) {
+                    this.panelStateManager.moveToSession(relativePath);
+                } else {
+                    const existsInSession = currentState.sessionFiles.some(
+                        (f) => f.path === relativePath
+                    );
+                    if (!existsInSession) {
+                        this.panelStateManager.addSessionFile({
+                            path: relativePath,
+                            name: fileName,
+                            status: 'modified',
+                        });
+                    }
+                }
+
+                const isFirstFile =
+                    currentState.sessionFiles.length === 0 &&
+                    !this.panelStateManager.isInBaseline(relativePath);
                 const isSelectedFile = currentState.selectedFile === relativePath;
 
-                // Add file to list
-                this.panelStateManager.addFile({
-                    path: relativePath,
-                    name: fileName,
-                    status: 'modified',
-                });
-
-                // Auto-generate diff if:
-                // 1. First file added (auto-select)
-                // 2. Currently selected file was modified (refresh)
                 if (this.generateDiffUseCase && (isFirstFile || isSelectedFile)) {
                     await this.generateDiffUseCase.execute(relativePath);
                 }

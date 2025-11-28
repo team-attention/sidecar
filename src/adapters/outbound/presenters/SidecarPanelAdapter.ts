@@ -3,6 +3,7 @@ import { IPanelPort } from '../../../application/ports/outbound/IPanelPort';
 import { PanelState } from '../../../application/ports/outbound/PanelState';
 import { IGenerateDiffUseCase } from '../../../application/ports/inbound/IGenerateDiffUseCase';
 import { IAddCommentUseCase } from '../../../application/ports/inbound/IAddCommentUseCase';
+import { IPanelStateManager } from '../../../application/services/IPanelStateManager';
 
 /**
  * Webview Panel Adapter
@@ -21,6 +22,7 @@ export class SidecarPanelAdapter implements IPanelPort {
     private generateDiffUseCase: IGenerateDiffUseCase | undefined;
     private addCommentUseCase: IAddCommentUseCase | undefined;
     private onSubmitComments: (() => void) | undefined;
+    private panelStateManager: IPanelStateManager | undefined;
 
     public static create(context: vscode.ExtensionContext): SidecarPanelAdapter {
         if (SidecarPanelAdapter.currentPanel) {
@@ -74,6 +76,11 @@ export class SidecarPanelAdapter implements IPanelPort {
                             });
                         }
                         break;
+                    case 'toggleUncommitted':
+                        if (this.panelStateManager) {
+                            this.panelStateManager.toggleShowUncommitted();
+                        }
+                        break;
                 }
             },
             null,
@@ -87,11 +94,13 @@ export class SidecarPanelAdapter implements IPanelPort {
     setUseCases(
         generateDiffUseCase: IGenerateDiffUseCase,
         addCommentUseCase: IAddCommentUseCase,
-        onSubmitComments: () => void
+        onSubmitComments: () => void,
+        panelStateManager?: IPanelStateManager
     ): void {
         this.generateDiffUseCase = generateDiffUseCase;
         this.addCommentUseCase = addCommentUseCase;
         this.onSubmitComments = onSubmitComments;
+        this.panelStateManager = panelStateManager;
     }
 
     /**
@@ -636,6 +645,71 @@ export class SidecarPanelAdapter implements IPanelPort {
           font-size: 12px;
           padding: 8px 0;
         }
+
+        .file-item {
+          position: relative;
+        }
+
+        .file-item.uncommitted {
+          background: var(--vscode-list-inactiveSelectionBackground, rgba(255, 255, 255, 0.04));
+          opacity: 0.7;
+        }
+
+        .file-item.uncommitted::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 3px;
+          background: var(--vscode-gitDecoration-untrackedResourceForeground, #73c991);
+        }
+
+        .section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+
+        .section-header h3 {
+          margin: 0;
+        }
+
+        .toggle-row {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          cursor: pointer;
+          opacity: 0.7;
+        }
+
+        .toggle-row:hover {
+          opacity: 1;
+        }
+
+        .toggle-checkbox {
+          width: 12px;
+          height: 12px;
+          border: 1px solid var(--vscode-checkbox-border, var(--vscode-input-border));
+          border-radius: 2px;
+          background: var(--vscode-checkbox-background, var(--vscode-input-background));
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 9px;
+          color: var(--vscode-checkbox-foreground, var(--vscode-foreground));
+        }
+
+        .toggle-checkbox.checked {
+          background: var(--vscode-checkbox-selectBackground, var(--vscode-button-background));
+          border-color: var(--vscode-checkbox-selectBorder, var(--vscode-button-background));
+        }
+
+        .toggle-label {
+          font-size: 11px;
+          color: var(--vscode-descriptionForeground);
+        }
       </style>
     </head>
     <body class="sidebar-collapsed">
@@ -649,7 +723,13 @@ export class SidecarPanelAdapter implements IPanelPort {
         </div>
 
         <div class="section">
-          <h3>Changed Files</h3>
+          <div class="section-header">
+            <h3>Changed Files</h3>
+            <div class="toggle-row" id="toggle-row" style="display: none;">
+              <span class="toggle-label">+<span id="uncommitted-count">0</span> prior changes</span>
+              <div class="toggle-checkbox" id="uncommitted-toggle"></div>
+            </div>
+          </div>
           <div id="files-list">
             <div class="empty-text">Waiting for changes...</div>
           </div>
@@ -750,6 +830,11 @@ export class SidecarPanelAdapter implements IPanelPort {
           vscode.postMessage({ type: 'submitComments' });
         });
 
+        // ===== Toggle uncommitted files =====
+        document.getElementById('toggle-row').addEventListener('click', () => {
+          vscode.postMessage({ type: 'toggleUncommitted' });
+        });
+
         // ===== Single message handler - state-based rendering =====
         window.addEventListener('message', event => {
           const { type, state } = event.data;
@@ -762,26 +847,46 @@ export class SidecarPanelAdapter implements IPanelPort {
          * Main render function - renders entire UI from state
          */
         function renderState(state) {
-          renderFileList(state.files, state.selectedFile);
+          renderFileList(state.sessionFiles, state.uncommittedFiles, state.showUncommitted, state.selectedFile);
           renderComments(state.comments);
           renderAIStatus(state.aiStatus);
           renderDiff(state.diff, state.selectedFile);
         }
 
         // ===== File List Rendering =====
-        function renderFileList(files, selectedFile) {
+        function renderFileList(sessionFiles, uncommittedFiles, showUncommitted, selectedFile) {
           const list = document.getElementById('files-list');
+          const toggleRow = document.getElementById('toggle-row');
+          const toggleSwitch = document.getElementById('uncommitted-toggle');
+          const countBadge = document.getElementById('uncommitted-count');
 
-          if (!files || files.length === 0) {
+          // Show toggle only if there are uncommitted files
+          if (uncommittedFiles && uncommittedFiles.length > 0) {
+            toggleRow.style.display = 'flex';
+            countBadge.textContent = uncommittedFiles.length;
+            toggleSwitch.classList.toggle('checked', showUncommitted);
+            toggleSwitch.textContent = showUncommitted ? '✓' : '';
+          } else {
+            toggleRow.style.display = 'none';
+          }
+
+          // Combine files for display
+          const allFiles = [...(sessionFiles || [])];
+          if (showUncommitted && uncommittedFiles) {
+            allFiles.push(...uncommittedFiles.map(f => ({ ...f, isUncommitted: true })));
+          }
+
+          if (allFiles.length === 0) {
             list.innerHTML = '<div class="empty-text">Waiting for changes...</div>';
             return;
           }
 
-          list.innerHTML = files.map(file => {
+          list.innerHTML = allFiles.map(file => {
             const isSelected = file.path === selectedFile;
             const statusBadge = file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : 'M';
+            const uncommittedClass = file.isUncommitted ? 'uncommitted' : '';
             return \`
-              <div class="file-item \${isSelected ? 'selected' : ''}" data-file="\${file.path}">
+              <div class="file-item \${isSelected ? 'selected' : ''} \${uncommittedClass}" data-file="\${file.path}">
                 <span class="file-icon">📄</span>
                 <span class="file-name" title="\${file.path}">\${file.name}</span>
                 <span class="file-badge">\${statusBadge}</span>
@@ -789,7 +894,7 @@ export class SidecarPanelAdapter implements IPanelPort {
             \`;
           }).join('');
 
-          // Add click handlers
+          // Add click handlers for file items
           list.querySelectorAll('.file-item').forEach(item => {
             item.onclick = () => {
               vscode.postMessage({ type: 'selectFile', file: item.dataset.file });
