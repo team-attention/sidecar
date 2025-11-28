@@ -34,6 +34,7 @@ export interface IPanelStateManager {
     addComment(comment: CommentInfo): void;
     removeComment(id: string): void;
     clearComments(): void;
+    markCommentsAsSubmitted(ids: string[]): void;
 
     // AI status
     setAIStatus(status: AIStatus): void;

@@ -77,7 +77,8 @@ export function activate(context: vscode.ExtensionContext) {
     const submitCommentsUseCase = new SubmitCommentsUseCase(
         commentRepository,
         terminalGateway,
-        notificationGateway
+        notificationGateway,
+        panelStateManager
     );
 
     // ===== Adapters Layer - Controllers =====
