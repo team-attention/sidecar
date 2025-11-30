@@ -628,71 +628,94 @@ export class SidecarPanelAdapter {
         }
 
         .markdown-preview {
-          padding: 24px;
+          padding: 32px 40px;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-          font-size: 14px;
-          line-height: 1.6;
+          font-size: 15px;
+          line-height: 1.7;
           color: var(--vscode-foreground);
           overflow: auto;
           height: 100%;
+          max-width: 900px;
         }
 
         .markdown-preview h1 {
-          font-size: 24px;
+          font-size: 28px;
           font-weight: 600;
-          margin: 0 0 16px 0;
-          padding-bottom: 8px;
+          margin: 0 0 20px 0;
+          padding-bottom: 12px;
           border-bottom: 1px solid var(--vscode-panel-border);
+          line-height: 1.3;
         }
 
         .markdown-preview h2 {
-          font-size: 20px;
+          font-size: 22px;
           font-weight: 600;
-          margin: 24px 0 12px 0;
+          margin: 32px 0 16px 0;
+          padding-bottom: 8px;
+          border-bottom: 1px solid var(--vscode-panel-border);
+          line-height: 1.3;
         }
 
         .markdown-preview h3 {
+          font-size: 18px;
+          font-weight: 600;
+          margin: 24px 0 12px 0;
+          line-height: 1.4;
+        }
+
+        .markdown-preview h4 {
           font-size: 16px;
           font-weight: 600;
-          margin: 20px 0 8px 0;
+          margin: 20px 0 10px 0;
         }
 
         .markdown-preview p {
-          margin: 0 0 12px 0;
+          margin: 0 0 16px 0;
         }
 
         .markdown-preview ul, .markdown-preview ol {
-          margin: 0 0 12px 0;
-          padding-left: 24px;
+          margin: 0 0 16px 0;
+          padding-left: 28px;
         }
 
         .markdown-preview li {
-          margin: 4px 0;
+          margin: 6px 0;
+          line-height: 1.6;
+        }
+
+        .markdown-preview li > ul,
+        .markdown-preview li > ol {
+          margin: 6px 0 6px 0;
         }
 
         .markdown-preview code {
-          font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
-          font-size: 13px;
-          background: var(--vscode-textCodeBlock-background);
-          padding: 2px 6px;
-          border-radius: 4px;
+          font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+          font-size: 0.9em;
+          background: var(--vscode-textCodeBlock-background, rgba(110, 118, 129, 0.25));
+          padding: 3px 7px;
+          border-radius: 6px;
+          word-break: break-word;
         }
 
         .markdown-preview pre {
-          background: var(--vscode-textCodeBlock-background);
-          padding: 12px 16px;
-          border-radius: 6px;
+          background: var(--vscode-textCodeBlock-background, rgba(110, 118, 129, 0.15));
+          padding: 16px 20px;
+          border-radius: 8px;
           overflow-x: auto;
-          margin: 0 0 12px 0;
+          margin: 0 0 16px 0;
+          border: 1px solid var(--vscode-panel-border, rgba(255, 255, 255, 0.1));
         }
 
         .markdown-preview pre code {
           background: none;
           padding: 0;
+          font-size: 13px;
+          line-height: 1.5;
+          border-radius: 0;
         }
 
         .markdown-preview a {
-          color: var(--vscode-textLink-foreground);
+          color: var(--vscode-textLink-foreground, #58a6ff);
           text-decoration: none;
         }
 
@@ -702,6 +725,28 @@ export class SidecarPanelAdapter {
 
         .markdown-preview strong {
           font-weight: 600;
+        }
+
+        .markdown-preview em {
+          font-style: italic;
+        }
+
+        .markdown-preview hr {
+          border: none;
+          border-top: 1px solid var(--vscode-panel-border);
+          margin: 24px 0;
+        }
+
+        .markdown-preview blockquote {
+          margin: 0 0 16px 0;
+          padding: 12px 20px;
+          border-left: 4px solid var(--vscode-textLink-foreground, #58a6ff);
+          background: var(--vscode-textCodeBlock-background, rgba(110, 118, 129, 0.1));
+          border-radius: 0 6px 6px 0;
+        }
+
+        .markdown-preview blockquote p {
+          margin: 0;
         }
 
         .comment-item {
@@ -1654,28 +1699,132 @@ export class SidecarPanelAdapter {
 
         // ===== Markdown Rendering =====
         function renderMarkdown(text) {
-          const bt = String.fromCharCode(96); // backtick character
-
           // Store code blocks first to protect them from processing
           const codeBlocks = [];
-          const codeBlockRegex = new RegExp(bt + bt + bt + '(\\\\w*)\\\\n([\\\\s\\\\S]*?)' + bt + bt + bt, 'g');
-          let html = text.replace(codeBlockRegex, (match, lang, code) => {
+          // Match fenced code blocks with optional language
+          let html = text.replace(/\`\`\`(\\w*)\\n([\\s\\S]*?)\`\`\`/g, (match, lang, code) => {
             const index = codeBlocks.length;
-            codeBlocks.push('<pre><code class="language-' + (lang || '') + '">' + escapeHtml(code) + '</code></pre>');
-            return '{{CODE_BLOCK_' + index + '}}';
+            codeBlocks.push('<pre><code class="language-' + (lang || '') + '">' + escapeHtml(code.trim()) + '</code></pre>');
+            return '\\n{{CODE_BLOCK_' + index + '}}\\n';
           });
 
-          // Store inline code
+          // Store inline code (single backticks)
           const inlineCode = [];
-          const inlineCodeRegex = new RegExp(bt + '([^' + bt + ']+)' + bt, 'g');
-          html = html.replace(inlineCodeRegex, (match, code) => {
+          html = html.replace(/\`([^\`\\n]+)\`/g, (match, code) => {
             const index = inlineCode.length;
             inlineCode.push('<code>' + escapeHtml(code) + '</code>');
             return '{{INLINE_CODE_' + index + '}}';
           });
 
-          // Now escape the rest
-          html = escapeHtml(html);
+          // Split into lines for processing
+          const lines = html.split('\\n');
+          const processedLines = [];
+          let inList = false;
+          let listType = null;
+
+          for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+
+            // Check for code block placeholder
+            if (line.trim().match(/^\\{\\{CODE_BLOCK_\\d+\\}\\}$/)) {
+              if (inList) {
+                processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                inList = false;
+                listType = null;
+              }
+              processedLines.push(line.trim());
+              continue;
+            }
+
+            // Horizontal rule
+            if (line.trim().match(/^(-{3,}|\\*{3,}|_{3,})$/)) {
+              if (inList) {
+                processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                inList = false;
+                listType = null;
+              }
+              processedLines.push('<hr>');
+              continue;
+            }
+
+            // Blockquote
+            if (line.match(/^>\\s?/)) {
+              if (inList) {
+                processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                inList = false;
+                listType = null;
+              }
+              const content = line.replace(/^>\\s?/, '');
+              processedLines.push('<blockquote><p>' + processInline(content) + '</p></blockquote>');
+              continue;
+            }
+
+            // Headers
+            if (line.match(/^#{1,6} /)) {
+              if (inList) {
+                processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                inList = false;
+                listType = null;
+              }
+              const level = line.match(/^(#+)/)[1].length;
+              const content = line.replace(/^#+\\s*/, '');
+              processedLines.push('<h' + level + '>' + escapeHtml(content) + '</h' + level + '>');
+              continue;
+            }
+
+            // Unordered list
+            if (line.match(/^\\s*[-*+]\\s+/)) {
+              const content = line.replace(/^\\s*[-*+]\\s+/, '');
+              if (!inList || listType !== 'ul') {
+                if (inList) processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                processedLines.push('<ul>');
+                inList = true;
+                listType = 'ul';
+              }
+              processedLines.push('<li>' + processInline(content) + '</li>');
+              continue;
+            }
+
+            // Ordered list
+            if (line.match(/^\\s*\\d+\\.\\s+/)) {
+              const content = line.replace(/^\\s*\\d+\\.\\s+/, '');
+              if (!inList || listType !== 'ol') {
+                if (inList) processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                processedLines.push('<ol>');
+                inList = true;
+                listType = 'ol';
+              }
+              processedLines.push('<li>' + processInline(content) + '</li>');
+              continue;
+            }
+
+            // Empty line - close list if open
+            if (line.trim() === '') {
+              if (inList) {
+                processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                inList = false;
+                listType = null;
+              }
+              processedLines.push('');
+              continue;
+            }
+
+            // Regular paragraph text
+            if (inList) {
+              processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+              inList = false;
+              listType = null;
+            }
+            processedLines.push(processInline(line));
+          }
+
+          // Close any open list
+          if (inList) {
+            processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+          }
+
+          // Join and wrap in paragraphs
+          html = processedLines.join('\\n');
 
           // Restore code blocks and inline code
           codeBlocks.forEach((block, i) => {
@@ -1685,42 +1834,54 @@ export class SidecarPanelAdapter {
             html = html.replace('{{INLINE_CODE_' + i + '}}', code);
           });
 
-          // Headers
-          html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-          html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-          html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+          // Wrap loose text in paragraphs (text not in block elements)
+          const blockTags = ['<h1', '<h2', '<h3', '<h4', '<h5', '<h6', '<ul', '<ol', '<li', '<pre', '<hr', '<blockquote', '</ul', '</ol', '</li', '</blockquote'];
+          const finalLines = html.split('\\n');
+          let result = '';
+          let paragraphBuffer = [];
 
-          // Bold and italic
-          html = html.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
-          html = html.replace(/\\*(.+?)\\*/g, '<em>$1</em>');
-          html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
-          html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+          for (const line of finalLines) {
+            const trimmed = line.trim();
+            if (trimmed === '') {
+              if (paragraphBuffer.length > 0) {
+                result += '<p>' + paragraphBuffer.join('<br>') + '</p>\\n';
+                paragraphBuffer = [];
+              }
+            } else if (blockTags.some(tag => trimmed.startsWith(tag))) {
+              if (paragraphBuffer.length > 0) {
+                result += '<p>' + paragraphBuffer.join('<br>') + '</p>\\n';
+                paragraphBuffer = [];
+              }
+              result += trimmed + '\\n';
+            } else {
+              paragraphBuffer.push(trimmed);
+            }
+          }
+          if (paragraphBuffer.length > 0) {
+            result += '<p>' + paragraphBuffer.join('<br>') + '</p>';
+          }
 
-          // Lists
-          html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-          html = html.replace(/^\\* (.+)$/gm, '<li>$1</li>');
-          html = html.replace(/^\\d+\\. (.+)$/gm, '<li>$1</li>');
+          return result;
+        }
 
-          // Wrap consecutive <li> in <ul>
-          html = html.replace(/(<li>.*<\\/li>\\n?)+/g, '<ul>$&</ul>');
+        function processInline(text) {
+          let result = escapeHtml(text);
+
+          // Restore inline code placeholders temporarily
+          // They will be replaced after processInline
+
+          // Bold (must come before italic)
+          result = result.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
+          result = result.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+          // Italic
+          result = result.replace(/\\*([^*]+)\\*/g, '<em>$1</em>');
+          result = result.replace(/_([^_]+)_/g, '<em>$1</em>');
 
           // Links
-          html = html.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2">$1</a>');
+          result = result.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2" target="_blank">$1</a>');
 
-          // Line breaks to paragraphs
-          html = html.split(/\\n\\n+/).map(p => p.trim() ? '<p>' + p.replace(/\\n/g, '<br>') + '</p>' : '').join('');
-
-          // Clean up paragraphs around block elements
-          html = html.replace(/<p>(<h[1-6]>)/g, '$1');
-          html = html.replace(/(<\\/h[1-6]>)<\\/p>/g, '$1');
-          html = html.replace(/<p>(<ul>)/g, '$1');
-          html = html.replace(/(<\\/ul>)<\\/p>/g, '$1');
-          html = html.replace(/<p>(<pre>)/g, '$1');
-          html = html.replace(/(<\\/pre>)<\\/p>/g, '$1');
-          html = html.replace(/<p><\\/p>/g, '');
-          html = html.replace(/<p><br><\\/p>/g, '');
-
-          return html;
+          return result;
         }
 
         function renderMarkdownPreview(diff, container) {
