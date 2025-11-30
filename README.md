@@ -1,91 +1,71 @@
 # Sidecar
 
-**Real-time code review interface for AI coding assistants**
+> Real-time code review panel for AI coding assistants
 
-Sidecar automatically detects AI coding tools like Claude Code, Codex, and Gemini CLI, displaying file changes in a side panel so you can review and provide feedback in real-time.
+Sidecar displays file changes from AI coding tools (Claude Code, Codex, Gemini CLI) in a dedicated side panel, enabling you to review modifications as they happen.
 
-## Demo
-
-https://github.com/user-attachments/assets/b893de21-bf19-430f-97c6-0ff544a7ac25
+![Demo](https://github.com/user-attachments/assets/b893de21-bf19-430f-97c6-0ff544a7ac25)
 
 ## Features
 
-- **Auto-Detection**: Automatically activates when Claude Code, Codex, or Gemini CLI starts in terminal
-- **Diff Viewer**: Human-friendly diff display with collapsible chunks and scope labels
-- **Scope Detection**: Shows function/class names for each change using LSP
-- **File Tree View**: Hierarchical file list with status badges (A/M/D)
-- **Markdown Preview**: Preview mode for markdown files
-- **Line Comments**: Click or drag-select lines to add review comments
-- **Direct Submission**: Send comments directly to the AI terminal
+### Automatic AI Detection
+Sidecar monitors your terminal and automatically activates when it detects Claude Code, Codex, or Gemini CLI. The review panel opens alongside your editor without manual intervention.
 
-## Installation
+### Structured Diff View
+File changes are displayed with collapsible chunks organized by code scope. Each chunk header shows the relevant function, class, or module name using LSP symbol detection, making it easy to understand the context of changes.
 
-Search for "Sidecar" in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+X`).
+### File Tree with Status Indicators
+Modified files appear in a hierarchical tree view with visual status badges:
+- **A** (green) — Added files
+- **M** (yellow) — Modified files
+- **D** (red) — Deleted files
+
+### Inline Review Comments
+Select single or multiple lines in the diff view to add comments. Comments are collected in the sidebar and can be sent directly to the active AI terminal with one click.
+
+### Markdown Preview
+For markdown files, toggle between diff view and rendered preview to see documentation changes as they will appear.
 
 ## Usage
 
-### Automatic Mode
+**Automatic**: Start any supported AI tool in VS Code's integrated terminal. Sidecar opens automatically.
 
-1. Open a workspace in VS Code
-2. Run Claude Code, Codex, or Gemini CLI in the terminal
-3. Sidecar panel opens automatically
-4. Review file changes as the AI works
+**Manual**: Open Command Palette (`Cmd+Shift+P`) → `Sidecar: Show Panel`
 
-### Manual Mode
-
-1. Open command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-2. Run `Sidecar: Show Panel`
-
-### Adding Comments
-
-Click or drag-select lines in the diff viewer to add comments.
-
-### Submitting Feedback
-
-Click "Ask AI" to send all comments to the active AI terminal.
-
-## Configuration
+## Extension Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `sidecar.autoDetect` | `true` | Auto-detect AI commands |
-| `sidecar.autoShowPanel` | `true` | Auto-show panel on AI detection |
-| `sidecar.includeFiles` | `[]` | Glob patterns for gitignored files to track |
+| `sidecar.autoDetect` | `true` | Automatically detect AI coding tools in terminal |
+| `sidecar.autoShowPanel` | `true` | Open Sidecar panel when AI tool is detected |
+| `sidecar.includeFiles` | `[]` | Glob patterns for tracking gitignored files |
 
-### Include Files Example
+### Tracking Gitignored Files
 
-Track build outputs and environment files:
+To track files normally excluded by `.gitignore` (build outputs, environment files):
 
 ```json
 {
-  "sidecar.includeFiles": [
-    "dist/**",
-    ".env.local",
-    "build/**/*.js"
-  ]
+  "sidecar.includeFiles": ["dist/**", ".env.local"]
 }
 ```
 
 ## Requirements
 
-- VS Code 1.93.0 or higher
+- VS Code 1.93.0 or later
 
-## Contributing
+## Supported AI Tools
 
-Contributions are welcome!
+- [Claude Code](https://claude.ai/code) by Anthropic
+- [Codex CLI](https://github.com/openai/codex) by OpenAI
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) by Google
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run `npm run lint` and `npm run compile`
-5. Submit a pull request
+## Links
+
+- [GitHub Repository](https://github.com/team-attention/sidecar)
+- [Report Issues](https://github.com/team-attention/sidecar/issues)
+- [Changelog](https://github.com/team-attention/sidecar/releases)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- [Claude Code](https://claude.ai/claude-code) by Anthropic
-- [Codex](https://openai.com/codex) by OpenAI
-- [Gemini](https://ai.google.dev) by Google
+[MIT](LICENSE)
