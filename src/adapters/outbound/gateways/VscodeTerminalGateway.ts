@@ -19,7 +19,10 @@ export class VscodeTerminalGateway implements ITerminalPort {
     sendText(terminalId: string, text: string): void {
         const terminal = this.terminals.get(terminalId);
         if (terminal) {
-            terminal.sendText(text, true);
+            terminal.sendText(text, false);
+            vscode.commands.executeCommand('workbench.action.terminal.sendSequence', {
+                text: '\r'
+            });
         }
     }
 
