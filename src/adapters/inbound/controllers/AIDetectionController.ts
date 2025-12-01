@@ -284,38 +284,15 @@ export class AIDetectionController {
         stateManager: IPanelStateManager
     ): Promise<void> {
         try {
-            const config = vscode.workspace.getConfiguration('sidecar');
-            const includePatterns = config.get<string[]>('includeFiles', []);
-
             const gitFilesWithStatus = await this.gitPort.getUncommittedFilesWithStatus(workspaceRoot);
 
-            let configFiles: string[] = [];
-            if (includePatterns.length > 0) {
-                const globResults = await Promise.all(
-                    includePatterns.map((pattern) => this.fileGlobber.glob(pattern, workspaceRoot))
-                );
-                const absolutePaths = globResults.flat();
-                configFiles = absolutePaths.map((absPath) =>
-                    path.relative(workspaceRoot, absPath)
-                );
-            }
-
-            const statusMap = new Map(gitFilesWithStatus.map(f => [f.path, f.status]));
-
-            const allPaths = new Set([
-                ...gitFilesWithStatus.map(f => f.path),
-                ...configFiles
-            ]);
-
-            const baselineFiles: FileInfo[] = Array.from(allPaths).map((filePath) => ({
-                path: filePath,
-                name: path.basename(filePath),
-                status: statusMap.get(filePath) || 'modified',
+            const baselineFiles: FileInfo[] = gitFilesWithStatus.map((f) => ({
+                path: f.path,
+                name: path.basename(f.path),
+                status: f.status,
             }));
 
             stateManager.setBaseline(baselineFiles);
-
-            console.log(`Baseline captured: ${baselineFiles.length} files`);
         } catch (error) {
             console.error('Failed to capture baseline:', error);
         }
