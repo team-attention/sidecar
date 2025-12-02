@@ -2806,9 +2806,30 @@ export class SidecarPanelAdapter {
           const finalLines = html.split('\\n');
           let result = '';
           let paragraphBuffer = [];
+          let inPreBlock = false;
 
           for (const line of finalLines) {
             const trimmed = line.trim();
+
+            // Track <pre> block state to avoid wrapping code content in <p> tags
+            if (trimmed.includes('<pre')) {
+              inPreBlock = true;
+            }
+
+            // Inside <pre> block - output directly without wrapping
+            if (inPreBlock) {
+              if (paragraphBuffer.length > 0) {
+                result += '<p>' + paragraphBuffer.join('<br>') + '</p>\\n';
+                paragraphBuffer = [];
+              }
+              result += trimmed + '\\n';
+              // Check if this line closes the <pre> block
+              if (trimmed.includes('</pre>')) {
+                inPreBlock = false;
+              }
+              continue;
+            }
+
             if (trimmed === '') {
               if (paragraphBuffer.length > 0) {
                 result += '<p>' + paragraphBuffer.join('<br>') + '</p>\\n';
