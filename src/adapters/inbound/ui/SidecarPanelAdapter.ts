@@ -2623,8 +2623,10 @@ export class SidecarPanelAdapter {
           }
 
           // Group consecutive lines by type: 'normal', 'addition', or insert deletions
+          // IMPORTANT: Never split inside code blocks to preserve markdown structure
           const groups = [];
           let currentGroup = null;
+          let inCodeBlock = false;
 
           // Check for deletions before first line
           if (deletionMap.has(0)) {
@@ -2637,19 +2639,30 @@ export class SidecarPanelAdapter {
             const isChanged = changedSet.has(lineNum);
             const groupType = isChanged ? 'addition' : 'normal';
 
+            // Track code block state (fenced code blocks start with triple backticks)
+            const trimmedLine = line.trim();
+            const isCodeFence = trimmedLine.startsWith(String.fromCharCode(96, 96, 96));
+            if (isCodeFence) {
+              inCodeBlock = !inCodeBlock;
+            }
+
             // Split on blank lines or markdown headers to enable granular commenting
+            // BUT never split inside code blocks
             const isBlankLine = line.trim() === '';
             const isHeader = line.match(/^#{1,6}\\s/);
-            const shouldSplit = currentGroup && currentGroup.type === groupType && (isBlankLine || isHeader);
+            const shouldSplit = !inCodeBlock && currentGroup && currentGroup.type === groupType && (isBlankLine || isHeader);
 
-            if (!currentGroup || currentGroup.type !== groupType || shouldSplit) {
+            // Don't change group type inside code blocks
+            const effectiveTypeChange = !inCodeBlock && currentGroup && currentGroup.type !== groupType;
+
+            if (!currentGroup || effectiveTypeChange || shouldSplit) {
               if (currentGroup && currentGroup.lines.length > 0) groups.push(currentGroup);
               currentGroup = { type: groupType, lines: [], startLine: lineNum };
             }
             currentGroup.lines.push(line);
 
-            // Check for deletions after this line
-            if (deletionMap.has(lineNum)) {
+            // Check for deletions after this line (but not inside code blocks)
+            if (deletionMap.has(lineNum) && !inCodeBlock) {
               if (currentGroup && currentGroup.lines.length > 0) groups.push(currentGroup);
               groups.push({ type: 'deletion', lines: deletionMap.get(lineNum), startLine: lineNum });
               currentGroup = null;
@@ -2729,7 +2742,23 @@ export class SidecarPanelAdapter {
           if (e.target.tagName === 'BUTTON' || e.target.tagName === 'TEXTAREA') return;
 
           // Allow selection on addition and normal blocks (not deletion)
-          const block = e.target.closest('.diff-addition, .diff-normal');
+          let block = e.target.closest('.diff-addition, .diff-normal');
+
+          // If clicking deletion block, find the next selectable block
+          if (!block) {
+            const deletionBlock = e.target.closest('.diff-deletion');
+            if (deletionBlock) {
+              // Find next sibling that is selectable
+              let nextBlock = deletionBlock.nextElementSibling;
+              while (nextBlock && !nextBlock.matches('.diff-addition, .diff-normal')) {
+                nextBlock = nextBlock.nextElementSibling;
+              }
+              if (nextBlock) {
+                block = nextBlock;
+              }
+            }
+          }
+
           if (!block) return;
 
           // Clear existing selection and form
@@ -2936,10 +2965,20 @@ export class SidecarPanelAdapter {
           };
 
           viewer.onmousedown = (e) => {
-            const row = e.target.closest('.diff-line');
+            let row = e.target.closest('.diff-line');
             if (!row || e.target.closest('.line-comment-btn') || e.target.closest('.inline-comment-form')) return;
-            // Don't allow selection starting from deletion lines
-            if (row.classList.contains('deletion')) return;
+            // If clicking deletion line, try to find addition line with same line number
+            if (row.classList.contains('deletion')) {
+              const lineNum = row.dataset.line;
+              if (!lineNum) return;
+              // Find addition or context row with same line number
+              const alternateRow = viewer.querySelector('.diff-line.addition[data-line="' + lineNum + '"], .diff-line.context[data-line="' + lineNum + '"]');
+              if (alternateRow) {
+                row = alternateRow;
+              } else {
+                return;
+              }
+            }
             const lineNum = row.dataset.line;
             if (!lineNum) return;
             isSelecting = true;
