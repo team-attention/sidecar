@@ -862,7 +862,6 @@ export class SidecarPanelAdapter {
         }
 
         .markdown-preview .diff-addition {
-          background: var(--vscode-diffEditor-insertedLineBackground, rgba(46, 160, 67, 0.15));
           border-left: 3px solid var(--vscode-gitDecoration-addedResourceForeground, #3fb950);
           padding-left: 8px;
           margin-left: -11px;
@@ -871,7 +870,23 @@ export class SidecarPanelAdapter {
         }
 
         .markdown-preview .diff-addition:hover {
+          background: var(--vscode-diffEditor-insertedLineBackground, rgba(46, 160, 67, 0.15));
+        }
+
+        .markdown-preview .diff-addition.preview-selected {
           background: var(--vscode-diffEditor-insertedLineBackground, rgba(46, 160, 67, 0.25));
+        }
+
+        .markdown-preview .diff-normal {
+          cursor: pointer;
+        }
+
+        .markdown-preview .diff-normal:hover {
+          background: var(--vscode-editor-hoverHighlightBackground, rgba(173, 214, 255, 0.15));
+        }
+
+        .markdown-preview .diff-normal.preview-selected {
+          background: var(--vscode-editor-selectionBackground, rgba(173, 214, 255, 0.3));
         }
 
         .markdown-preview .diff-deletion {
@@ -2618,18 +2633,24 @@ export class SidecarPanelAdapter {
 
           for (let i = 0; i < lines.length; i++) {
             const lineNum = i + 1; // 1-indexed
+            const line = lines[i];
             const isChanged = changedSet.has(lineNum);
             const groupType = isChanged ? 'addition' : 'normal';
 
-            if (!currentGroup || currentGroup.type !== groupType) {
-              if (currentGroup) groups.push(currentGroup);
+            // Split on blank lines or markdown headers to enable granular commenting
+            const isBlankLine = line.trim() === '';
+            const isHeader = line.match(/^#{1,6}\\s/);
+            const shouldSplit = currentGroup && currentGroup.type === groupType && (isBlankLine || isHeader);
+
+            if (!currentGroup || currentGroup.type !== groupType || shouldSplit) {
+              if (currentGroup && currentGroup.lines.length > 0) groups.push(currentGroup);
               currentGroup = { type: groupType, lines: [], startLine: lineNum };
             }
-            currentGroup.lines.push(lines[i]);
+            currentGroup.lines.push(line);
 
             // Check for deletions after this line
             if (deletionMap.has(lineNum)) {
-              if (currentGroup) groups.push(currentGroup);
+              if (currentGroup && currentGroup.lines.length > 0) groups.push(currentGroup);
               groups.push({ type: 'deletion', lines: deletionMap.get(lineNum), startLine: lineNum });
               currentGroup = null;
             }
@@ -2645,11 +2666,11 @@ export class SidecarPanelAdapter {
             const endLine = group.startLine + group.lines.length - 1;
 
             if (group.type === 'addition') {
-              markdownHtml += '<div class="diff-addition" data-start-line="' + group.startLine + '" data-end-line="' + endLine + '">' + rendered + '</div>';
+              markdownHtml += '<div class="diff-block diff-addition" data-start-line="' + group.startLine + '" data-end-line="' + endLine + '">' + rendered + '</div>';
             } else if (group.type === 'deletion') {
-              markdownHtml += '<div class="diff-deletion" data-after-line="' + group.startLine + '">' + rendered + '</div>';
+              markdownHtml += '<div class="diff-block diff-deletion" data-after-line="' + group.startLine + '">' + rendered + '</div>';
             } else {
-              markdownHtml += rendered;
+              markdownHtml += '<div class="diff-block diff-normal" data-start-line="' + group.startLine + '" data-end-line="' + endLine + '">' + rendered + '</div>';
             }
           }
 
@@ -2682,50 +2703,127 @@ export class SidecarPanelAdapter {
 
         // ===== Preview Comment Handlers =====
         let previewCurrentFile = null;
-        let previewClickHandler = null;
+        let previewDragStartBlock = null;
+        let previewDragEndBlock = null;
+        let previewIsDragging = false;
 
         function setupPreviewCommentHandlers(file) {
           previewCurrentFile = file;
           const preview = document.querySelector('.markdown-preview');
           if (!preview) return;
 
-          // Remove previous handler if exists
-          if (previewClickHandler) {
-            preview.removeEventListener('click', previewClickHandler);
-          }
+          // Remove previous handlers
+          preview.onmousedown = null;
+          preview.onmousemove = null;
+          document.removeEventListener('mouseup', handlePreviewMouseUp);
 
-          // Create new handler and store reference
-          previewClickHandler = handlePreviewBlockClick;
-          preview.addEventListener('click', previewClickHandler);
+          // Setup drag selection handlers
+          preview.onmousedown = handlePreviewMouseDown;
+          preview.onmousemove = handlePreviewMouseMove;
+          document.addEventListener('mouseup', handlePreviewMouseUp);
         }
 
-        function handlePreviewBlockClick(e) {
-          // Only allow comments on additions, not deletions
-          const block = e.target.closest('.diff-addition');
+        function handlePreviewMouseDown(e) {
+          // Ignore if clicking form elements
+          if (e.target.closest('.preview-comment-form')) return;
+          if (e.target.tagName === 'BUTTON' || e.target.tagName === 'TEXTAREA') return;
+
+          // Allow selection on addition and normal blocks (not deletion)
+          const block = e.target.closest('.diff-addition, .diff-normal');
           if (!block) return;
 
-          // Don't open new form if clicking inside existing form
-          if (e.target.closest('.preview-comment-form')) return;
-
-          // Remove any existing form
+          // Clear existing selection and form
+          clearPreviewSelection();
           const existingForm = document.querySelector('.preview-comment-form');
           if (existingForm) existingForm.remove();
 
-          // Get line info
-          const startLine = block.dataset.startLine || block.dataset.afterLine || '1';
-          const endLine = block.dataset.endLine || startLine;
-          const isDeletion = block.classList.contains('diff-deletion');
+          previewDragStartBlock = block;
+          previewDragEndBlock = block;
+          previewIsDragging = true;
+          block.classList.add('preview-selected');
+          e.preventDefault();
+        }
 
+        function handlePreviewMouseMove(e) {
+          if (!previewIsDragging || !previewDragStartBlock) return;
+
+          const block = e.target.closest('.diff-addition, .diff-normal');
+          if (!block || block === previewDragEndBlock) return;
+
+          previewDragEndBlock = block;
+          updatePreviewSelection();
+        }
+
+        function handlePreviewMouseUp(e) {
+          if (!previewIsDragging || !previewDragStartBlock) {
+            previewIsDragging = false;
+            return;
+          }
+
+          previewIsDragging = false;
+
+          // Get all selected blocks and calculate line range
+          const selectedBlocks = document.querySelectorAll('.diff-block.preview-selected');
+          if (selectedBlocks.length === 0) return;
+
+          let minLine = Infinity;
+          let maxLine = -Infinity;
+
+          selectedBlocks.forEach(block => {
+            const start = parseInt(block.dataset.startLine || '0', 10);
+            const end = parseInt(block.dataset.endLine || start, 10);
+            if (start < minLine) minLine = start;
+            if (end > maxLine) maxLine = end;
+          });
+
+          // Show comment form at the last selected block
+          const lastBlock = selectedBlocks[selectedBlocks.length - 1];
+          showPreviewCommentForm(lastBlock, minLine, maxLine);
+        }
+
+        function updatePreviewSelection() {
+          if (!previewDragStartBlock || !previewDragEndBlock) return;
+
+          const preview = document.querySelector('.markdown-preview');
+          if (!preview) return;
+
+          // Get selectable blocks (addition and normal, not deletion)
+          const selectableBlocks = Array.from(preview.querySelectorAll('.diff-addition, .diff-normal'));
+
+          const startIdx = selectableBlocks.indexOf(previewDragStartBlock);
+          const endIdx = selectableBlocks.indexOf(previewDragEndBlock);
+
+          if (startIdx === -1 || endIdx === -1) return;
+
+          const minIdx = Math.min(startIdx, endIdx);
+          const maxIdx = Math.max(startIdx, endIdx);
+
+          // Clear previous selection
+          selectableBlocks.forEach(b => b.classList.remove('preview-selected'));
+
+          // Select all blocks in range
+          for (let i = minIdx; i <= maxIdx; i++) {
+            selectableBlocks[i].classList.add('preview-selected');
+          }
+        }
+
+        function clearPreviewSelection() {
+          document.querySelectorAll('.diff-block.preview-selected, .diff-block.preview-in-range').forEach(b => {
+            b.classList.remove('preview-selected', 'preview-in-range');
+          });
+          previewDragStartBlock = null;
+          previewDragEndBlock = null;
+        }
+
+        function showPreviewCommentForm(block, startLine, endLine) {
           const lineDisplay = startLine === endLine
             ? 'line ' + startLine
             : 'lines ' + startLine + '-' + endLine;
-          const typeLabel = isDeletion ? ' (deleted)' : '';
 
-          // Create comment form
           const form = document.createElement('div');
           form.className = 'preview-comment-form';
           form.innerHTML = \`
-            <div class="comment-form-header">Comment on \${lineDisplay}\${typeLabel}</div>
+            <div class="comment-form-header">Comment on \${lineDisplay}</div>
             <textarea placeholder="Leave a comment..."></textarea>
             <div class="comment-form-actions">
               <button class="btn-secondary" onclick="closePreviewCommentForm()">Cancel</button>
@@ -2733,7 +2831,6 @@ export class SidecarPanelAdapter {
             </div>
           \`;
 
-          // Insert form inside the block (at the end)
           block.appendChild(form);
           form.querySelector('textarea').focus();
         }
@@ -2741,6 +2838,7 @@ export class SidecarPanelAdapter {
         window.closePreviewCommentForm = function() {
           const form = document.querySelector('.preview-comment-form');
           if (form) form.remove();
+          clearPreviewSelection();
         };
 
         window.submitPreviewComment = function(startLine, endLine) {
@@ -2760,6 +2858,7 @@ export class SidecarPanelAdapter {
           });
 
           form.remove();
+          clearPreviewSelection();
         };
 
         function renderChunksToHtml(chunks, chunkStates) {
