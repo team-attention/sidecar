@@ -710,23 +710,38 @@ function highlightCode(code, lang) {
     javascript: ['console', 'Math', 'JSON', 'Object', 'Array', 'String', 'Number', 'Boolean', 'Date', 'Promise', 'Map', 'Set', 'Error', 'RegExp', 'setTimeout', 'setInterval', 'fetch', 'document', 'window'],
     typescript: ['console', 'Math', 'JSON', 'Object', 'Array', 'String', 'Number', 'Boolean', 'Date', 'Promise', 'Map', 'Set', 'Error', 'RegExp', 'setTimeout', 'setInterval', 'fetch', 'document', 'window', 'Partial', 'Required', 'Readonly', 'Record', 'Pick', 'Omit', 'Exclude', 'Extract', 'ReturnType'],
     python: ['print', 'len', 'range', 'str', 'int', 'float', 'list', 'dict', 'set', 'tuple', 'bool', 'type', 'isinstance', 'hasattr', 'getattr', 'setattr', 'open', 'input', 'sorted', 'map', 'filter', 'zip', 'enumerate', 'sum', 'min', 'max', 'abs', 'round'],
-    py: ['print', 'len', 'range', 'str', 'int', 'float', 'list', 'dict', 'set', 'tuple', 'bool', 'type', 'isinstance', 'hasattr', 'getattr', 'setattr', 'open', 'input', 'sorted', 'map', 'filter', 'zip', 'enumerate', 'sum', 'min', 'max', 'abs', 'round']
+    py: ['print', 'len', 'range', 'str', 'int', 'float', 'list', 'dict', 'set', 'tuple', 'bool', 'type', 'isinstance', 'hasattr', 'getattr', 'setattr', 'open', 'input', 'sorted', 'map', 'filter', 'zip', 'enumerate', 'sum', 'min', 'max', 'abs', 'round'],
+    bash: ['mkdir', 'cd', 'ls', 'rm', 'cp', 'mv', 'cat', 'echo', 'grep', 'find', 'chmod', 'chown', 'sudo', 'apt', 'yum', 'brew', 'npm', 'npx', 'pnpm', 'yarn', 'git', 'curl', 'wget', 'tar', 'zip', 'unzip', 'ssh', 'scp', 'touch', 'head', 'tail', 'sed', 'awk', 'sort', 'uniq', 'wc', 'pwd', 'which', 'man', 'kill', 'ps', 'top', 'df', 'du', 'ln', 'source', 'alias', 'env', 'set', 'unset'],
+    sh: ['mkdir', 'cd', 'ls', 'rm', 'cp', 'mv', 'cat', 'echo', 'grep', 'find', 'chmod', 'chown', 'sudo', 'apt', 'yum', 'brew', 'npm', 'npx', 'pnpm', 'yarn', 'git', 'curl', 'wget', 'tar', 'zip', 'unzip', 'ssh', 'scp', 'touch', 'head', 'tail', 'sed', 'awk', 'sort', 'uniq', 'wc', 'pwd', 'which', 'man', 'kill', 'ps', 'top', 'df', 'du', 'ln', 'source', 'alias', 'env', 'set', 'unset']
+  };
+
+  const types = {
+    ts: ['string', 'number', 'boolean', 'void', 'null', 'undefined', 'never', 'any', 'unknown', 'object', 'symbol', 'bigint'],
+    typescript: ['string', 'number', 'boolean', 'void', 'null', 'undefined', 'never', 'any', 'unknown', 'object', 'symbol', 'bigint']
   };
 
   let escaped = escapeHtml(code);
   const langKeywords = keywords[lang] || keywords['js'] || [];
   const langBuiltins = builtins[lang] || [];
+  const langTypes = types[lang] || [];
 
-  escaped = escaped.replace(/(\\/{2}.*)$/gm, '<span class="hljs-comment">$1</span>');
+  const placeholders = [];
+  const savePlaceholder = (html) => {
+    const idx = placeholders.length;
+    placeholders.push(html);
+    return '___HLPH' + idx + '___';
+  };
+
+  escaped = escaped.replace(/(\\/{2}.*)$/gm, (m) => savePlaceholder('<span class="hljs-comment">' + m + '</span>'));
   if (['python', 'py', 'bash', 'sh', 'yaml', 'yml'].includes(lang)) {
-    escaped = escaped.replace(/(#.*)$/gm, '<span class="hljs-comment">$1</span>');
+    escaped = escaped.replace(/(#.*)$/gm, (m) => savePlaceholder('<span class="hljs-comment">' + m + '</span>'));
   }
-  escaped = escaped.replace(/(\\/\\*[\\s\\S]*?\\*\\/)/g, '<span class="hljs-comment">$1</span>');
-  escaped = escaped.replace(/(&lt;!--[\\s\\S]*?--&gt;)/g, '<span class="hljs-comment">$1</span>');
+  escaped = escaped.replace(/(\\/\\*[\\s\\S]*?\\*\\/)/g, (m) => savePlaceholder('<span class="hljs-comment">' + m + '</span>'));
+  escaped = escaped.replace(/(&lt;!--[\\s\\S]*?--&gt;)/g, (m) => savePlaceholder('<span class="hljs-comment">' + m + '</span>'));
 
-  escaped = escaped.replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;)/g, '<span class="hljs-string">$1</span>');
-  escaped = escaped.replace(/(&#39;(?:[^&]|&(?!#39;))*?&#39;)/g, '<span class="hljs-string">$1</span>');
-  escaped = escaped.replace(/(\\\`[^\\\`]*\\\`)/g, '<span class="hljs-string">$1</span>');
+  escaped = escaped.replace(/("(?:[^"\\\\]|\\\\.)*")/g, (m) => savePlaceholder('<span class="hljs-string">' + m + '</span>'));
+  escaped = escaped.replace(/('(?:[^'\\\\]|\\\\.)*')/g, (m) => savePlaceholder('<span class="hljs-string">' + m + '</span>'));
+  escaped = escaped.replace(/(\`(?:[^\`\\\\]|\\\\.)*\`)/g, (m) => savePlaceholder('<span class="hljs-string">' + m + '</span>'));
 
   escaped = escaped.replace(/\\b(\\d+\\.?\\d*)\\b/g, '<span class="hljs-number">$1</span>');
 
@@ -740,12 +755,25 @@ function highlightCode(code, lang) {
     escaped = escaped.replace(regex, '<span class="hljs-builtin">$1</span>');
   }
 
+  for (const tp of langTypes) {
+    const regex = new RegExp('\\\\b(' + tp + ')\\\\b', 'g');
+    escaped = escaped.replace(regex, '<span class="hljs-type">$1</span>');
+  }
+
   escaped = escaped.replace(/\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(/g, '<span class="hljs-function">$1</span>(');
+
+  if (['ts', 'typescript'].includes(lang)) {
+    escaped = escaped.replace(/([a-zA-Z_][a-zA-Z0-9_]*)(\\??\\s*):/g, '<span class="hljs-property">$1</span>$2:');
+  }
 
   if (['html', 'xml', 'jsx', 'tsx'].includes(lang)) {
     escaped = escaped.replace(/(&lt;\\/?)([a-zA-Z][a-zA-Z0-9]*)/g, '$1<span class="hljs-tag">$2</span>');
     escaped = escaped.replace(/\\s([a-zA-Z-]+)=/g, ' <span class="hljs-attr">$1</span>=');
   }
+
+  placeholders.forEach((val, idx) => {
+    escaped = escaped.replace('___HLPH' + idx + '___', val);
+  });
 
   return escaped;
 }
@@ -983,8 +1011,8 @@ function renderMarkdown(text) {
         result += '<p>' + paragraphBuffer.join('<br>') + '</p>\\n';
         paragraphBuffer = [];
       }
-      result += trimmed + '\\n';
-      if (trimmed.includes('</pre>')) {
+      result += line + '\\n';
+      if (line.includes('</pre>')) {
         inPreBlock = false;
       }
       continue;

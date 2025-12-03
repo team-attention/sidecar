@@ -387,6 +387,7 @@ h3 {
   overflow-x: auto;
   margin: 0 0 16px 0;
   border: 1px solid var(--vscode-panel-border, rgba(255, 255, 255, 0.1));
+  white-space: pre;
 }
 
 .markdown-preview pre code {
@@ -395,6 +396,8 @@ h3 {
   font-size: 13px;
   line-height: 1.5;
   border-radius: 0;
+  white-space: pre;
+  display: block;
 }
 
 .markdown-preview a {
@@ -515,6 +518,7 @@ h3 {
 .markdown-preview pre code .hljs-tag { color: var(--vscode-debugTokenExpression-name, #569cd6); }
 .markdown-preview pre code .hljs-attr { color: var(--vscode-symbolIcon-propertyForeground, #9cdcfe); }
 .markdown-preview pre code .hljs-builtin { color: var(--vscode-symbolIcon-classForeground, #4ec9b0); }
+.markdown-preview pre code .hljs-type { color: var(--vscode-symbolIcon-classForeground, #4ec9b0); }
 
 .markdown-preview .preview-comment-form {
   margin: 12px 0;
