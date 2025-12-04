@@ -482,6 +482,7 @@ export class SidecarPanelAdapter {
         this.panel.webview.postMessage({
             type: 'scrollToLine',
             line: comment.line,
+            endLine: comment.endLine,
             commentId: id,
         });
     }

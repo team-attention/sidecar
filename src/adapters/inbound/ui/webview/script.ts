@@ -290,7 +290,7 @@ window.addEventListener('message', event => {
   if (message.type === 'render' && message.state) {
     renderState(message.state);
   } else if (message.type === 'scrollToLine') {
-    scrollToLineInDiff(message.line, message.commentId);
+    scrollToLineInDiff(message.line, message.endLine, message.commentId);
   }
 });
 
@@ -671,49 +671,36 @@ function navigateToComment(id) {
 }
 
 // ===== Inline Comment Toggle =====
-const foldedComments = new Set(); // line numbers that are folded
+function toggleInlineComment(elementOrLineNum) {
+  // Get endLines to toggle (comment rows are rendered at endLine)
+  let endLines = [];
 
-function toggleInlineComment(lineNum) {
-  const commentRow = document.querySelector('.inline-comment-row[data-line="' + lineNum + '"]');
-  if (!commentRow) return;
-
-  if (commentRow.classList.contains('collapsed')) {
-    commentRow.classList.remove('collapsed');
-    foldedComments.delete(lineNum);
-  } else {
-    commentRow.classList.add('collapsed');
-    foldedComments.add(lineNum);
-  }
-
-  // Update marker icon
-  updateMarkerIcon(lineNum);
-}
-
-function updateMarkerIcon(lineNum) {
-  const gutter = document.querySelector('.diff-line[data-line="' + lineNum + '"] .diff-gutter');
-  if (!gutter) return;
-
-  const marker = gutter.querySelector('.comment-marker');
-  if (marker) {
-    const isFolded = foldedComments.has(lineNum);
-    marker.textContent = isFolded ? '○' : '●'; // Hollow when folded, filled when expanded
-  }
-}
-
-// ===== Inline Comment Fold/Edit =====
-function toggleCommentFold(commentId) {
-  const body = document.getElementById('inline-body-' + commentId);
-  const box = document.querySelector('.inline-comment-box[data-comment-id="' + commentId + '"]');
-  const icon = box?.querySelector('.fold-icon');
-
-  if (body && box) {
-    const isCollapsed = box.classList.toggle('folded');
-    if (icon) {
-      icon.textContent = isCollapsed ? '▶' : '▼';
+  if (typeof elementOrLineNum === 'object' && elementOrLineNum.dataset) {
+    // Called from gutter click - use data-end-lines
+    const endLinesAttr = elementOrLineNum.dataset.endLines;
+    if (endLinesAttr) {
+      endLines = endLinesAttr.split(',').map(Number);
     }
+  } else {
+    // Called with lineNum directly (from header click)
+    endLines = [elementOrLineNum];
   }
+
+  // Toggle each endLine's comment row
+  endLines.forEach(lineNum => {
+    const commentRow = document.querySelector('.inline-comment-row[data-line="' + lineNum + '"]');
+    if (!commentRow) return;
+
+    if (commentRow.classList.contains('collapsed')) {
+      commentRow.classList.remove('collapsed');
+    } else {
+      commentRow.classList.add('collapsed');
+    }
+  });
 }
 
+
+// ===== Inline Comment Edit =====
 function startInlineEdit(commentId) {
   document.getElementById('inline-body-' + commentId).style.display = 'none';
   document.getElementById('inline-edit-' + commentId).style.display = 'block';
@@ -734,7 +721,9 @@ function saveInlineEdit(commentId) {
   cancelInlineEdit(commentId);
 }
 
-function scrollToLineInDiff(lineNumber, commentId) {
+function scrollToLineInDiff(startLine, endLine, commentId) {
+  const actualEndLine = endLine || startLine;
+
   // Expand sidebar if collapsed
   if (bodyEl.classList.contains('sidebar-collapsed')) {
     expandSidebar();
@@ -744,40 +733,52 @@ function scrollToLineInDiff(lineNumber, commentId) {
   const diffContainer = document.getElementById('diff-viewer');
   if (!diffContainer) return;
 
-  // Find which chunk contains this line and expand if collapsed
+  // Find all rows in the range and expand collapsed chunks
   const chunkBodies = diffContainer.querySelectorAll('tbody.chunk-lines');
-  let targetRow = null;
+  const targetRows = [];
 
   chunkBodies.forEach((chunk, index) => {
-    const rows = chunk.querySelectorAll('tr[data-line]');
+    // Only select diff-line rows, not inline-comment-row
+    const rows = chunk.querySelectorAll('tr.diff-line[data-line]');
     rows.forEach(row => {
-      if (parseInt(row.dataset.line) === lineNumber) {
+      const lineNum = parseInt(row.dataset.line);
+      if (lineNum >= startLine && lineNum <= actualEndLine && !row.classList.contains('deletion')) {
         // Expand chunk if collapsed
         if (chunk.classList.contains('collapsed')) {
           vscode.postMessage({ type: 'toggleChunkCollapse', index });
         }
-        targetRow = row;
+        targetRows.push(row);
       }
     });
   });
 
   // If not found in chunks, try direct query
-  if (!targetRow) {
-    targetRow = diffContainer.querySelector('tr[data-line="' + lineNumber + '"]');
+  if (targetRows.length === 0) {
+    for (let line = startLine; line <= actualEndLine; line++) {
+      const row = diffContainer.querySelector('tr.diff-line.addition[data-line="' + line + '"], tr.diff-line.context[data-line="' + line + '"]');
+      if (row) targetRows.push(row);
+    }
   }
 
-  if (targetRow) {
+  if (targetRows.length > 0) {
     // Small delay to allow chunk expansion animation
     setTimeout(() => {
-      targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Scroll to first row
+      targetRows[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-      // Add highlight class (animated in Task 6)
-      targetRow.classList.add('highlight-target');
+      // Highlight all rows in range
+      targetRows.forEach(row => row.classList.add('highlight-target'));
 
       // Remove highlight after animation
       setTimeout(() => {
-        targetRow.classList.remove('highlight-target');
+        targetRows.forEach(row => row.classList.remove('highlight-target'));
       }, 2000);
+
+      // Expand the comment if collapsed (comment row is at endLine)
+      const commentRow = diffContainer.querySelector('.inline-comment-row[data-line="' + actualEndLine + '"]');
+      if (commentRow && commentRow.classList.contains('collapsed')) {
+        commentRow.classList.remove('collapsed');
+      }
     }, 100);
   }
 }
@@ -962,7 +963,10 @@ function highlightCode(code, lang) {
   escaped = escaped.replace(/\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(/g, (m, name) => savePlaceholder('<span class="hljs-function">' + name + '</span>') + '(');
 
   if (['ts', 'typescript'].includes(lang)) {
-    escaped = escaped.replace(/([a-zA-Z_][a-zA-Z0-9_]*)(\\??\\s*):/g, (m, name, suffix) => savePlaceholder('<span class="hljs-property">' + name + '</span>') + suffix + ':');
+    escaped = escaped.replace(/(?<!_)\\b([a-zA-Z_][a-zA-Z0-9_]*)(?!_)(\\??\\s*):/g, (m, name, suffix) => {
+      if (name.match(/^HLPH\\d+$/)) return m;
+      return savePlaceholder('<span class="hljs-property">' + name + '</span>') + suffix + ':';
+    });
   }
 
   if (['html', 'xml', 'jsx', 'tsx'].includes(lang)) {
@@ -1417,21 +1421,8 @@ function handlePreviewMouseDown(e) {
   if (e.target.closest('.preview-comment-form')) return;
   if (e.target.tagName === 'BUTTON' || e.target.tagName === 'TEXTAREA') return;
 
-  let block = e.target.closest('.diff-addition, .diff-normal');
-
-  if (!block) {
-    const deletionBlock = e.target.closest('.diff-deletion');
-    if (deletionBlock) {
-      let nextBlock = deletionBlock.nextElementSibling;
-      while (nextBlock && !nextBlock.matches('.diff-addition, .diff-normal')) {
-        nextBlock = nextBlock.nextElementSibling;
-      }
-      if (nextBlock) {
-        block = nextBlock;
-      }
-    }
-  }
-
+  // Only allow comments on addition or normal blocks, not deletions
+  const block = e.target.closest('.diff-addition, .diff-normal');
   if (!block) return;
 
   clearPreviewSelection();
@@ -1559,14 +1550,23 @@ window.submitPreviewComment = function(startLine, endLine) {
 };
 
 function renderChunksToHtml(chunks, chunkStates, comments = []) {
-  // Build comment lookup by line number
+  // Assign color index to each comment (for visual distinction)
+  const commentColorMap = new Map();
+  comments.forEach((comment, idx) => {
+    commentColorMap.set(comment.id, idx % 6); // 6 colors in palette
+  });
+
+  // Build comment lookup by line number (for multi-line comments, add to all lines in range)
   const commentsByLine = new Map();
   comments.forEach(comment => {
-    const key = comment.line;
-    if (!commentsByLine.has(key)) {
-      commentsByLine.set(key, []);
+    const startLine = comment.line;
+    const endLine = comment.endLine || comment.line;
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      if (!commentsByLine.has(lineNum)) {
+        commentsByLine.set(lineNum, []);
+      }
+      commentsByLine.get(lineNum).push({ ...comment, colorIndex: commentColorMap.get(comment.id) });
     }
-    commentsByLine.get(key).push(comment);
   });
 
   let html = '';
@@ -1602,43 +1602,58 @@ function renderChunksToHtml(chunks, chunkStates, comments = []) {
       const lineClass = line.type;
       const prefix = line.type === 'addition' ? '+' : line.type === 'deletion' ? '-' : ' ';
       const lineNum = line.newLineNumber || line.oldLineNumber || '';
+      const isDeletion = line.type === 'deletion';
 
-      // Check if this line has comments
-      const hasComments = commentsByLine.has(lineNum);
-      const lineComments = commentsByLine.get(lineNum) || [];
-      const hasPending = lineComments.some(c => !c.isSubmitted);
-      const markerClass = hasComments
-        ? (hasPending ? 'has-comment pending' : 'has-comment submitted')
-        : '';
+      // Check if this line has comments (only show on non-deletion lines)
+      const hasComments = !isDeletion && commentsByLine.has(lineNum);
+      const lineComments = hasComments ? commentsByLine.get(lineNum) : [];
+      // Only render inline comment row for comments that END on this line
+      const primaryComments = lineComments.filter(c => (c.endLine || c.line) === lineNum);
+
+      // Build range indicators for each comment (with colors)
+      let rangeIndicators = '';
+      if (hasComments) {
+        lineComments.forEach((c) => {
+          const isStart = c.line === lineNum;
+          const isEnd = (c.endLine || c.line) === lineNum;
+          const isSingle = isStart && isEnd;
+          let posClass = isSingle ? 'single' : isStart ? 'start' : isEnd ? 'end' : 'middle';
+          // Add dot marker for end lines
+          const dotMarker = isEnd ? '<span class="end-dot color-' + c.colorIndex + '">●</span>' : '';
+          rangeIndicators += '<span class="range-line range-' + posClass + ' color-' + c.colorIndex + '" style="left: ' + (4 + c.colorIndex * 3) + 'px">' + dotMarker + '</span>';
+        });
+      }
+
+      const markerClass = hasComments ? 'has-comment' : '';
+
+      // Click only toggles comments that END on this line (avoids overlapping comment confusion)
+      const gutterAttrs = primaryComments.length > 0 ? ' data-end-lines="' + lineNum + '" onclick="toggleInlineComment(this)"' : '';
 
       html += \`
         <tr class="diff-line \${lineClass}" data-line="\${lineNum}">
-          <td class="diff-gutter \${markerClass}" onclick="toggleInlineComment(\${lineNum})">
-            \${hasComments ? '<span class="comment-marker">●</span>' : ''}
+          <td class="diff-gutter \${markerClass}"\${gutterAttrs}>
+            \${rangeIndicators}
           </td>
           <td class="diff-line-num">\${lineNum}</td>
           <td class="diff-line-content" data-prefix="\${prefix}">\${escapeHtml(line.content)}</td>
         </tr>
       \`;
 
-      // Add inline comment row if this line has comments (collapsed by default)
-      if (hasComments) {
+      // Add inline comment row only for comments that START on this line
+      if (primaryComments.length > 0) {
         html += \`
           <tr class="inline-comment-row collapsed" data-line="\${lineNum}">
             <td colspan="3">
               <div class="inline-comments">
-                \${lineComments.map(c => {
+                \${primaryComments.map(c => {
                   const isPending = !c.isSubmitted;
                   const statusClass = isPending ? 'pending' : 'submitted';
                   return \`
-                    <div class="inline-comment-box \${statusClass}" data-comment-id="\${c.id}">
-                      <div class="inline-comment-header">
-                        <button class="fold-toggle" onclick="toggleCommentFold('\${c.id}')" title="Fold comment">
-                          <span class="fold-icon">▼</span>
-                        </button>
+                    <div class="inline-comment-box \${statusClass} color-\${c.colorIndex}" data-comment-id="\${c.id}">
+                      <div class="inline-comment-header" onclick="toggleInlineComment(\${lineNum})" style="cursor: pointer;">
                         <span class="comment-author">Comment</span>
                         \${isPending ? \`
-                          <div class="inline-comment-actions">
+                          <div class="inline-comment-actions" onclick="event.stopPropagation()">
                             <button class="btn-icon" onclick="startInlineEdit('\${c.id}')" title="Edit">✎</button>
                             <button class="btn-icon btn-danger" onclick="deleteComment('\${c.id}')" title="Delete">🗑</button>
                           </div>
@@ -1698,16 +1713,8 @@ function setupLineHoverHandlers(currentFile) {
   viewer.onmousedown = (e) => {
     let row = e.target.closest('.diff-line');
     if (!row || e.target.closest('.line-comment-btn') || e.target.closest('.inline-comment-form')) return;
-    if (row.classList.contains('deletion')) {
-      const lineNum = row.dataset.line;
-      if (!lineNum) return;
-      const alternateRow = viewer.querySelector('.diff-line.addition[data-line="' + lineNum + '"], .diff-line.context[data-line="' + lineNum + '"]');
-      if (alternateRow) {
-        row = alternateRow;
-      } else {
-        return;
-      }
-    }
+    // Don't allow comments on deletion lines
+    if (row.classList.contains('deletion')) return;
     const lineNum = row.dataset.line;
     if (!lineNum) return;
     isSelecting = true;
@@ -1814,7 +1821,7 @@ function showInlineCommentForm(currentFile, startLine, endLine) {
   formRow.dataset.start = startLine || selectedLineNum;
   formRow.dataset.end = endLine || startLine || selectedLineNum;
   formRow.innerHTML = \`
-    <td colspan="2">
+    <td colspan="3">
       <div class="inline-comment-form active">
         <div class="comment-form-header">Comment on \${lineDisplay}</div>
         <textarea class="comment-textarea" placeholder="Leave a comment..."></textarea>
