@@ -155,12 +155,11 @@ export class PanelStateManager implements IPanelStateManager {
             diff.file.endsWith('.markdown') ||
             diff.file.endsWith('.mdx');
 
-        // Determine view mode: markdown -> preview, has scopedDiff -> scope, else diff
+        // Determine view mode: markdown -> preview, else diff
+        // (scope view available via toggle but not default)
         let viewMode: DiffViewMode = 'diff';
         if (isMarkdown) {
             viewMode = 'preview';
-        } else if (scopedDiff && scopedDiff.hasScopeData) {
-            viewMode = 'scope';
         }
 
         this.state = {

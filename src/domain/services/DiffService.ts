@@ -290,25 +290,25 @@ export class DiffService {
         let lcsIdx = 0;
 
         while (oldIdx < oldLines.length || newIdx < newLines.length) {
-            if (lcsIdx < lcs.length && oldIdx < oldLines.length && oldLines[oldIdx] === lcs[lcsIdx]) {
-                if (newIdx < newLines.length && newLines[newIdx] === lcs[lcsIdx]) {
-                    result.push({ type: 'equal', line: oldLines[oldIdx] });
-                    oldIdx++;
-                    newIdx++;
-                    lcsIdx++;
-                } else if (newIdx < newLines.length) {
-                    result.push({ type: 'insert', line: newLines[newIdx] });
-                    newIdx++;
-                } else {
-                    result.push({ type: 'delete', line: oldLines[oldIdx] });
-                    oldIdx++;
-                }
-            } else if (oldIdx < oldLines.length && (lcsIdx >= lcs.length || oldLines[oldIdx] !== lcs[lcsIdx])) {
+            // First, output all deletions (lines in old but not in LCS at this position)
+            while (oldIdx < oldLines.length && (lcsIdx >= lcs.length || oldLines[oldIdx] !== lcs[lcsIdx])) {
                 result.push({ type: 'delete', line: oldLines[oldIdx] });
                 oldIdx++;
-            } else if (newIdx < newLines.length) {
+            }
+
+            // Then, output all insertions (lines in new but not in LCS at this position)
+            while (newIdx < newLines.length && (lcsIdx >= lcs.length || newLines[newIdx] !== lcs[lcsIdx])) {
                 result.push({ type: 'insert', line: newLines[newIdx] });
                 newIdx++;
+            }
+
+            // Finally, if we have a match in LCS, output it as equal
+            if (lcsIdx < lcs.length && oldIdx < oldLines.length && newIdx < newLines.length &&
+                oldLines[oldIdx] === lcs[lcsIdx] && newLines[newIdx] === lcs[lcsIdx]) {
+                result.push({ type: 'equal', line: oldLines[oldIdx] });
+                oldIdx++;
+                newIdx++;
+                lcsIdx++;
             }
         }
 
