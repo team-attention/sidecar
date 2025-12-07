@@ -4,7 +4,9 @@ export { GenerateDiffUseCase } from './GenerateDiffUseCase';
 export { CaptureSnapshotsUseCase } from './CaptureSnapshotsUseCase';
 export { EditCommentUseCase } from './EditCommentUseCase';
 export { DeleteCommentUseCase } from './DeleteCommentUseCase';
+export { FetchHNStoriesUseCase } from './FetchHNStoriesUseCase';
 
 // Re-export from ports for backward compatibility
 export { AddCommentInput } from '../ports/inbound/IAddCommentUseCase';
 export { IFileGlobber } from '../ports/outbound/IFileGlobber';
+export { FetchHNStoriesResult } from '../ports/inbound/IFetchHNStoriesUseCase';

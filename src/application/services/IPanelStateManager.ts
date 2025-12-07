@@ -1,4 +1,4 @@
-import { PanelState, FileInfo, CommentInfo, AIStatus, DiffDisplayState, DiffViewMode, DraftComment } from '../ports/outbound/PanelState';
+import { PanelState, FileInfo, CommentInfo, AIStatus, DiffDisplayState, DiffViewMode, DraftComment, HNStoryInfo } from '../ports/outbound/PanelState';
 
 /**
  * Panel state manager - manages UI state and triggers rendering
@@ -62,4 +62,10 @@ export interface IPanelStateManager {
 
     // Reset state (e.g., when panel closes)
     reset(): void;
+
+    // HN feed operations
+    setHNFeedLoading(): void;
+    setHNStories(stories: HNStoryInfo[], fetchedAt: number): void;
+    setHNFeedError(error: string): void;
+    clearHNFeed(): void;
 }

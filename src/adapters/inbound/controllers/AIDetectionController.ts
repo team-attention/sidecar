@@ -17,6 +17,7 @@ import { AddCommentUseCase } from '../../../application/useCases/AddCommentUseCa
 import { EditCommentUseCase } from '../../../application/useCases/EditCommentUseCase';
 import { DeleteCommentUseCase } from '../../../application/useCases/DeleteCommentUseCase';
 import { SubmitCommentsUseCase } from '../../../application/useCases/SubmitCommentsUseCase';
+import { IFetchHNStoriesUseCase } from '../../../application/ports/inbound/IFetchHNStoriesUseCase';
 import { InMemorySnapshotRepository } from '../../../infrastructure/repositories/InMemorySnapshotRepository';
 import { VscodeTerminalGateway } from '../../outbound/gateways/VscodeTerminalGateway';
 import { SidecarPanelAdapter } from '../ui/SidecarPanelAdapter';
@@ -52,7 +53,8 @@ export class AIDetectionController {
         private readonly commentRepository: ICommentRepository,
         private readonly submitCommentsUseCase: SubmitCommentsUseCase,
         private readonly diffService: DiffService,
-        private readonly symbolPort: ISymbolPort
+        private readonly symbolPort: ISymbolPort,
+        private readonly fetchHNStoriesUseCase?: IFetchHNStoriesUseCase
     ) {}
 
     activate(context: vscode.ExtensionContext): void {
@@ -231,7 +233,8 @@ export class AIDetectionController {
             stateManager,
             this.symbolPort,
             editCommentUseCase,
-            deleteCommentUseCase
+            deleteCommentUseCase,
+            this.fetchHNStoriesUseCase
         );
 
         // ===== SessionContext 생성 및 저장 =====

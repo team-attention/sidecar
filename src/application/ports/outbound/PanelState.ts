@@ -3,6 +3,24 @@ import { ScopeInfo } from './ISymbolPort';
 
 export type DiffViewMode = 'diff' | 'preview';
 
+export type HNFeedStatus = 'idle' | 'loading' | 'error' | 'success';
+
+/**
+ * HN story info for panel display (serializable)
+ */
+export interface HNStoryInfo {
+    id: number;
+    title: string;
+    url: string | null;
+    score: number;
+    descendants: number;
+    by: string;
+    time: number;
+    domain: string | null;
+    discussionUrl: string;
+    timeAgo: string;
+}
+
 /**
  * File information for panel display
  */
@@ -103,6 +121,10 @@ export interface PanelState {
     searchQuery: string;
     draftComment: DraftComment | null;
     fileScrollPositions: FileScrollPositions;
+    hnStories: HNStoryInfo[];
+    hnFeedStatus: HNFeedStatus;
+    hnFeedError?: string;
+    hnLastFetchTime?: number;
 }
 
 /**
@@ -122,5 +144,9 @@ export function createInitialPanelState(): PanelState {
         searchQuery: '',
         draftComment: null,
         fileScrollPositions: {},
+        hnStories: [],
+        hnFeedStatus: 'idle',
+        hnFeedError: undefined,
+        hnLastFetchTime: undefined,
     };
 }

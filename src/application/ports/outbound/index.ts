@@ -7,3 +7,4 @@ export { INotificationPort } from './INotificationPort';
 export { IFileGlobber } from './IFileGlobber';
 export { ISymbolPort, ScopeInfo } from './ISymbolPort';
 export { SessionContext } from './SessionContext';
+export { IHNApiPort } from './IHNApiPort';

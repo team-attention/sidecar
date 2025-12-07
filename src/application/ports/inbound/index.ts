@@ -4,3 +4,4 @@ export { IGenerateDiffUseCase } from './IGenerateDiffUseCase';
 export { ISubmitCommentsUseCase } from './ISubmitCommentsUseCase';
 export { IEditCommentUseCase, EditCommentInput } from './IEditCommentUseCase';
 export { IDeleteCommentUseCase, DeleteCommentInput } from './IDeleteCommentUseCase';
+export { IFetchHNStoriesUseCase, FetchHNStoriesResult } from './IFetchHNStoriesUseCase';

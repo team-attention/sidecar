@@ -1653,4 +1653,157 @@ button:hover {
 .shiki .type { color: var(--vscode-symbolIcon-classForeground, #4ec9b0); }
 .shiki .operator { color: var(--vscode-foreground, #d4d4d4); }
 .shiki .property { color: var(--vscode-symbolIcon-propertyForeground, #9cdcfe); }
+
+/* ===== Hacker News Feed Styles ===== */
+.hn-feed {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--vscode-editor-background);
+}
+
+.hn-feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.hn-feed-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.hn-feed-title .hn-icon { color: #ff6600; }
+
+.hn-refresh-btn {
+  width: auto;
+  padding: 4px 10px;
+  font-size: 11px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hn-refresh-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.hn-refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.hn-refresh-btn.loading { pointer-events: none; }
+.hn-refresh-btn.loading .refresh-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes hn-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.hn-story-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hn-story {
+  padding: 10px 12px;
+  background: var(--vscode-editor-inactiveSelectionBackground);
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.hn-story:hover { background: var(--vscode-list-hoverBackground); }
+
+.hn-story-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  line-height: 1.4;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.hn-story-title:hover {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: underline;
+}
+
+.hn-story-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.hn-story-score {
+  color: var(--vscode-gitDecoration-addedResourceForeground, #3fb950);
+  font-weight: 500;
+}
+
+.hn-story-comments { cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.hn-story-comments:hover {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: underline;
+}
+
+.hn-story-domain { color: var(--vscode-textLink-foreground); opacity: 0.8; }
+.hn-story-time { margin-left: auto; }
+
+/* Loading state */
+.hn-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.hn-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--vscode-panel-border);
+  border-top-color: var(--vscode-textLink-foreground);
+  border-radius: 50%;
+  animation: hn-spin 1s linear infinite;
+}
+
+/* Error state */
+.hn-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 12px;
+  text-align: center;
+}
+
+.hn-error-icon { font-size: 32px; opacity: 0.5; }
+.hn-error-message { color: var(--vscode-errorForeground); font-size: 13px; }
+.hn-error-retry { margin-top: 8px; }
+
+.hn-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 12px;
+  color: var(--vscode-descriptionForeground);
+}
 `;
