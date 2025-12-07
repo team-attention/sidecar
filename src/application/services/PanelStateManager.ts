@@ -6,6 +6,7 @@ import {
     DiffDisplayState,
     DiffViewMode,
     DraftComment,
+    HNStoryInfo,
     createInitialPanelState,
 } from '../ports/outbound/PanelState';
 import { IPanelStateManager } from './IPanelStateManager';
@@ -368,6 +369,48 @@ export class PanelStateManager implements IPanelStateManager {
     reset(): void {
         this.baselineSet.clear();
         this.state = createInitialPanelState();
+        this.render();
+    }
+
+    // ===== HN feed operations =====
+
+    setHNFeedLoading(): void {
+        this.state = {
+            ...this.state,
+            hnFeedStatus: 'loading',
+            hnFeedError: undefined,
+        };
+        this.render();
+    }
+
+    setHNStories(stories: HNStoryInfo[], fetchedAt: number): void {
+        this.state = {
+            ...this.state,
+            hnStories: stories,
+            hnFeedStatus: 'success',
+            hnFeedError: undefined,
+            hnLastFetchTime: fetchedAt,
+        };
+        this.render();
+    }
+
+    setHNFeedError(error: string): void {
+        this.state = {
+            ...this.state,
+            hnFeedStatus: 'error',
+            hnFeedError: error,
+        };
+        this.render();
+    }
+
+    clearHNFeed(): void {
+        this.state = {
+            ...this.state,
+            hnStories: [],
+            hnFeedStatus: 'idle',
+            hnFeedError: undefined,
+            hnLastFetchTime: undefined,
+        };
         this.render();
     }
 

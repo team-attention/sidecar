@@ -19,7 +19,9 @@ import {
     VscodeNotificationGateway,
     FastGlobGateway,
     VscodeLspGateway,
+    HNApiGateway,
 } from './adapters/outbound/gateways';
+import { FetchHNStoriesUseCase } from './application/useCases/FetchHNStoriesUseCase';
 
 // Infrastructure - Repositories
 import { JsonCommentRepository } from './infrastructure/repositories/JsonCommentRepository';
@@ -44,8 +46,10 @@ export function activate(context: vscode.ExtensionContext) {
     const notificationGateway = new VscodeNotificationGateway();
     const fileGlobber = new FastGlobGateway();
     const lspGateway = new VscodeLspGateway();
+    const hnApiGateway = new HNApiGateway();
 
     // ===== Application Layer - Shared Use Cases =====
+    const fetchHNStoriesUseCase = new FetchHNStoriesUseCase(hnApiGateway);
     const submitCommentsUseCase = new SubmitCommentsUseCase(
         commentRepository,
         terminalGateway,
@@ -62,7 +66,8 @@ export function activate(context: vscode.ExtensionContext) {
         commentRepository,
         submitCommentsUseCase,
         diffService,
-        lspGateway
+        lspGateway,
+        fetchHNStoriesUseCase
     );
 
     const fileWatchController = new FileWatchController();

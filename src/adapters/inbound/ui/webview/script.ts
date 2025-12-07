@@ -305,6 +305,11 @@ function getScrollableElement() {
 }
 
 function renderState(state) {
+  // Auto-fetch HN stories when panel is first shown and no file is selected
+  if (!state.selectedFile && !state.diff && state.hnFeedStatus === 'idle') {
+    vscode.postMessage({ type: 'refreshHNFeed' });
+  }
+
   // Check if we're switching files
   const previousFile = currentFile;
   const newFile = state.selectedFile;
@@ -350,7 +355,7 @@ function renderState(state) {
   renderFileList(state.sessionFiles, state.uncommittedFiles, state.showUncommitted, state.selectedFile, state.isTreeView, state.searchQuery, state.diff);
   renderComments(state.comments);
   renderAIStatus(state.aiStatus);
-  renderDiff(state.diff, state.selectedFile, state.diffViewMode, state.comments);
+  renderDiff(state.diff, state.selectedFile, state.diffViewMode, state.comments, state.hnStories, state.hnFeedStatus, state.hnFeedError);
 
   // Restore scroll position after render
   if (scrollToRestore > 0) {
@@ -938,12 +943,21 @@ function renderAIStatus(aiStatus) {
 }
 
 // ===== Diff Rendering =====
-async function renderDiff(diff, selectedFile, viewMode, comments = []) {
+async function renderDiff(diff, selectedFile, viewMode, comments = [], hnStories = [], hnFeedStatus = 'idle', hnFeedError = null) {
   const header = document.querySelector('.diff-header-title');
   const stats = document.getElementById('diff-stats');
   const viewer = document.getElementById('diff-viewer');
 
   if (!diff || !diff.chunks || diff.chunks.length === 0) {
+    // Show HN feed when no file is selected
+    if (!selectedFile && !diff) {
+      header.textContent = 'Hacker News';
+      stats.innerHTML = '';
+      diffToolbar.style.display = 'none';
+      viewer.innerHTML = renderHNFeed(hnStories, hnFeedStatus, hnFeedError);
+      return;
+    }
+
     header.textContent = selectedFile || 'Select a file to review';
     stats.innerHTML = '';
     diffToolbar.style.display = 'none';
@@ -2171,4 +2185,97 @@ function escapeHtml(text) {
   div.textContent = text;
   return div.innerHTML;
 }
+
+// ===== Hacker News Feed =====
+function renderHNFeed(stories, status, error) {
+  const isLoading = status === 'loading';
+
+  let content = '';
+
+  if (status === 'loading') {
+    content = \`
+      <div class="hn-loading">
+        <div class="hn-loading-spinner"></div>
+        <div>Loading stories...</div>
+      </div>
+    \`;
+  } else if (status === 'error') {
+    content = \`
+      <div class="hn-error">
+        <div class="hn-error-icon">⚠️</div>
+        <div class="hn-error-message">\${escapeHtml(error || 'Failed to load stories')}</div>
+        <div class="hn-error-retry">
+          <button class="hn-refresh-btn" onclick="refreshHNFeed()">
+            <span class="refresh-icon">↻</span> Retry
+          </button>
+        </div>
+      </div>
+    \`;
+  } else if (!stories || stories.length === 0) {
+    content = \`
+      <div class="hn-empty">
+        <div>No stories available</div>
+        <button class="hn-refresh-btn" onclick="refreshHNFeed()">
+          <span class="refresh-icon">↻</span> Load Stories
+        </button>
+      </div>
+    \`;
+  } else {
+    content = \`
+      <div class="hn-story-list">
+        \${stories.map((story, index) => renderHNStory(story, index)).join('')}
+      </div>
+    \`;
+  }
+
+  return \`
+    <div class="hn-feed">
+      <div class="hn-feed-header">
+        <div class="hn-feed-title">
+          <span class="hn-icon">Y</span>
+          <span>Hacker News</span>
+        </div>
+        <button class="hn-refresh-btn \${isLoading ? 'loading' : ''}" onclick="refreshHNFeed()" \${isLoading ? 'disabled' : ''}>
+          <span class="refresh-icon">↻</span> Refresh
+        </button>
+      </div>
+      \${content}
+    </div>
+  \`;
+}
+
+function renderHNStory(story, index) {
+  const domainDisplay = story.domain ? \`<span class="hn-story-domain">(\${escapeHtml(story.domain)})</span>\` : '';
+  const storyUrl = story.url || story.discussionUrl;
+
+  return \`
+    <div class="hn-story">
+      <span class="hn-story-title" onclick="openHNStory('\${escapeHtml(storyUrl)}')" title="\${escapeHtml(story.title)}">
+        \${escapeHtml(story.title)}
+      </span>
+      <div class="hn-story-meta">
+        <span class="hn-story-score">▲ \${story.score}</span>
+        <span class="hn-story-comments" onclick="openHNComments(\${story.id})">
+          💬 \${story.descendants} comments
+        </span>
+        \${domainDisplay}
+        <span class="hn-story-time">\${escapeHtml(story.timeAgo)}</span>
+      </div>
+    </div>
+  \`;
+}
+
+window.refreshHNFeed = function() {
+  vscode.postMessage({ type: 'refreshHNFeed' });
+};
+
+window.openHNStory = function(url) {
+  if (url) {
+    vscode.postMessage({ type: 'openHNStory', url: url });
+  }
+};
+
+window.openHNComments = function(storyId) {
+  vscode.postMessage({ type: 'openHNComments', storyId: storyId });
+};
 `;

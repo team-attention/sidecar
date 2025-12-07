@@ -5,6 +5,7 @@ import { IGenerateDiffUseCase } from '../../../application/ports/inbound/IGenera
 import { IAddCommentUseCase } from '../../../application/ports/inbound/IAddCommentUseCase';
 import { IEditCommentUseCase } from '../../../application/ports/inbound/IEditCommentUseCase';
 import { IDeleteCommentUseCase } from '../../../application/ports/inbound/IDeleteCommentUseCase';
+import { IFetchHNStoriesUseCase } from '../../../application/ports/inbound/IFetchHNStoriesUseCase';
 import { IPanelStateManager } from '../../../application/services/IPanelStateManager';
 import { ISymbolPort, ScopeInfo } from '../../../application/ports/outbound/ISymbolPort';
 import { DiffResult, DiffChunk } from '../../../domain/entities/Diff';
@@ -37,6 +38,7 @@ export class SidecarPanelAdapter {
     private addCommentUseCase: IAddCommentUseCase | undefined;
     private editCommentUseCase: IEditCommentUseCase | undefined;
     private deleteCommentUseCase: IDeleteCommentUseCase | undefined;
+    private fetchHNStoriesUseCase: IFetchHNStoriesUseCase | undefined;
     private onSubmitComments: (() => Promise<void>) | undefined;
     private panelStateManager: IPanelStateManager | undefined;
     private symbolPort: ISymbolPort | undefined;
@@ -169,6 +171,15 @@ export class SidecarPanelAdapter {
                             this.panelStateManager?.setFileScrollPosition(message.file, message.scrollTop);
                         }
                         break;
+                    case 'refreshHNFeed':
+                        await this.handleRefreshHNFeed();
+                        break;
+                    case 'openHNStory':
+                        await this.handleOpenHNStory(message.url);
+                        break;
+                    case 'openHNComments':
+                        await this.handleOpenHNComments(message.storyId);
+                        break;
                 }
             },
             null,
@@ -186,7 +197,8 @@ export class SidecarPanelAdapter {
         panelStateManager?: IPanelStateManager,
         symbolPort?: ISymbolPort,
         editCommentUseCase?: IEditCommentUseCase,
-        deleteCommentUseCase?: IDeleteCommentUseCase
+        deleteCommentUseCase?: IDeleteCommentUseCase,
+        fetchHNStoriesUseCase?: IFetchHNStoriesUseCase
     ): void {
         this.generateDiffUseCase = generateDiffUseCase;
         this.addCommentUseCase = addCommentUseCase;
@@ -195,6 +207,7 @@ export class SidecarPanelAdapter {
         this.symbolPort = symbolPort;
         this.editCommentUseCase = editCommentUseCase;
         this.deleteCommentUseCase = deleteCommentUseCase;
+        this.fetchHNStoriesUseCase = fetchHNStoriesUseCase;
     }
 
     /**
@@ -499,6 +512,42 @@ export class SidecarPanelAdapter {
             endLine: comment.endLine,
             commentId: id,
         });
+    }
+
+    private async handleRefreshHNFeed(): Promise<void> {
+        if (!this.fetchHNStoriesUseCase || !this.panelStateManager) return;
+
+        try {
+            this.panelStateManager.setHNFeedLoading();
+            const result = await this.fetchHNStoriesUseCase.execute();
+            const storyInfos = result.stories.map(story => ({
+                id: story.id,
+                title: story.title,
+                url: story.url,
+                score: story.score,
+                descendants: story.descendants,
+                by: story.by,
+                time: story.time,
+                domain: story.domain,
+                discussionUrl: story.discussionUrl,
+                timeAgo: story.timeAgo,
+            }));
+            this.panelStateManager.setHNStories(storyInfos, result.fetchedAt);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch stories';
+            this.panelStateManager.setHNFeedError(errorMessage);
+        }
+    }
+
+    private async handleOpenHNStory(url: string): Promise<void> {
+        if (!url) return;
+        await vscode.env.openExternal(vscode.Uri.parse(url));
+    }
+
+    private async handleOpenHNComments(storyId: number): Promise<void> {
+        if (!storyId) return;
+        const hnUrl = `https://news.ycombinator.com/item?id=${storyId}`;
+        await vscode.env.openExternal(vscode.Uri.parse(hnUrl));
     }
 
     // ===== Render method =====
