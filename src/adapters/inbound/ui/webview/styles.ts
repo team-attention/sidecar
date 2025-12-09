@@ -1716,6 +1716,52 @@ button:hover {
   gap: 2px;
 }
 
+.hn-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.hn-load-more-btn {
+  padding: 8px 24px;
+  background: var(--vscode-button-secondaryBackground);
+  border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, transparent));
+  color: var(--vscode-button-secondaryForeground);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+
+.hn-load-more-btn:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.hn-load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.hn-loading-spinner-small {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--vscode-foreground);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: hn-spin 1s linear infinite;
+}
+
+.hn-end-of-list {
+  text-align: center;
+  padding: 16px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
 .hn-story {
   padding: 10px 12px;
   background: var(--vscode-editor-inactiveSelectionBackground);
@@ -2046,6 +2092,8 @@ button:hover {
   align-items: center;
   padding: 32px 16px;
   text-align: center;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .waiting-spinner {
@@ -2089,7 +2137,8 @@ button:hover {
 
 .waiting-feed-container {
   width: 100%;
-  max-height: 60vh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -2122,5 +2171,129 @@ button:hover {
 
 .feed-toggle-btn:hover {
   background: var(--vscode-list-hoverBackground);
+}
+
+/* ============================================
+   Content View Styles
+   ============================================ */
+
+.content-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-view-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: var(--vscode-editor-background);
+}
+
+.content-view-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--vscode-editor-background);
+  z-index: 10;
+}
+
+.content-view-loading.hidden {
+  display: none;
+}
+
+.content-view-loading .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--vscode-foreground);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.content-view-error {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--vscode-editor-background);
+}
+
+.content-view-error.hidden {
+  display: none;
+}
+
+.content-view-error .error-icon {
+  font-size: 48px;
+}
+
+.content-view-error .error-text {
+  color: var(--vscode-errorForeground);
+  font-size: 14px;
+}
+
+.content-view-error .error-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.content-view-error .error-btn {
+  padding: 6px 16px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.content-view-error .error-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+/* Content View Header Actions */
+.content-view-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.content-action-btn {
+  padding: 4px 12px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.content-action-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.content-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 `;

@@ -13,6 +13,42 @@ function getSignal() {
   return globalAbortController.signal;
 }
 
+// ===== Header structure management =====
+// Content view replaces the entire header structure. This function restores the default header.
+function ensureDefaultHeaderStructure() {
+  const viewerHeader = document.getElementById('viewer-header');
+  if (!viewerHeader) return;
+
+  // Check if default structure exists (diff-stats is a reliable indicator)
+  const diffStats = document.getElementById('diff-stats');
+  if (diffStats) return; // Already has default structure
+
+  // Restore default header structure
+  viewerHeader.innerHTML = \`
+    <span class="diff-header-icon">📄</span>
+    <span class="diff-header-title">Select a file to review</span>
+    <div class="diff-stats" id="diff-stats"></div>
+    <button class="sidebar-toggle" id="toggle-sidebar" aria-label="Expand file list panel">&lt;</button>
+  \`;
+
+  // Re-attach toggle button listener
+  const newToggleButton = document.getElementById('toggle-sidebar');
+  if (newToggleButton) {
+    newToggleButton.addEventListener('click', () => {
+      bodyEl.classList.contains('sidebar-collapsed') ? expandSidebar() : collapseSidebar();
+    }, { signal: getSignal() });
+
+    // Update toggle button state to match current sidebar state
+    if (bodyEl.classList.contains('sidebar-collapsed')) {
+      newToggleButton.textContent = '<';
+      newToggleButton.setAttribute('aria-label', 'Expand file list panel');
+    } else {
+      newToggleButton.textContent = '>';
+      newToggleButton.setAttribute('aria-label', 'Collapse file list panel');
+    }
+  }
+}
+
 // ===== Collection size limits =====
 const MAX_COLLAPSED_FOLDERS = 1000;
 const MAX_SEARCH_MATCHES = 500;
@@ -421,12 +457,18 @@ async function renderState(state) {
   renderComments(state.comments);
   renderAIStatus(state.aiStatus);
 
+  // Content view takes precedence over all other views
+  if (state.contentView) {
+    renderContentViewState(state.contentView);
+    return;
+  }
+
   // Check if waiting screen should be shown
   const shouldShowWaiting = state.aiStatus.active &&
     (state.sessionFiles.length === 0 || state.showHNFeed);
 
   if (shouldShowWaiting) {
-    renderWaitingScreen(state.hnStories, state.hnFeedStatus, state.hnFeedError);
+    renderWaitingScreen(state.hnStories, state.hnFeedStatus, state.hnFeedError, state.hnHasMore, state.hnLoadingMore);
   } else if (state.diffViewMode === 'scope' && state.scopedDiff) {
     // Render based on diffViewMode
     await renderScopedDiff(state.scopedDiff, state.selectedFile, state.comments, !!state.diff);
@@ -1035,6 +1077,9 @@ let scopedDiffCurrentFile = null;
 let scopedDiffHighlightMap = new Map();
 
 async function renderScopedDiff(scopedDiff, selectedFile, comments = [], hasDiff = false) {
+  // Restore default header structure if it was replaced by content view
+  ensureDefaultHeaderStructure();
+
   const header = document.querySelector('.diff-header-title');
   const stats = document.getElementById('diff-stats');
   const viewer = document.getElementById('diff-viewer');
@@ -1044,7 +1089,7 @@ async function renderScopedDiff(scopedDiff, selectedFile, comments = [], hasDiff
 
   if (!scopedDiff) {
     header.textContent = selectedFile || 'Select a file to review';
-    stats.innerHTML = '';
+    if (stats) stats.innerHTML = '';
     diffToolbar.style.display = 'none';
     viewer.innerHTML = \`
       <div class="placeholder">
@@ -1514,6 +1559,9 @@ function scrollToLineInScopedDiff(line) {
 
 // ===== Diff Rendering =====
 async function renderDiff(diff, selectedFile, viewMode, comments = [], hasScopedDiff = false, hnStories = [], hnFeedStatus = 'idle', hnFeedError = null, aiStatus = { active: false }) {
+  // Restore default header structure if it was replaced by content view
+  ensureDefaultHeaderStructure();
+
   const header = document.querySelector('.diff-header-title');
   const stats = document.getElementById('diff-stats');
   const viewer = document.getElementById('diff-viewer');
@@ -1522,14 +1570,14 @@ async function renderDiff(diff, selectedFile, viewMode, comments = [], hasScoped
     // Show HN feed when no file is selected
     if (!selectedFile && !diff) {
       header.textContent = 'Hacker News';
-      stats.innerHTML = '';
+      if (stats) stats.innerHTML = '';
       diffToolbar.style.display = 'none';
       viewer.innerHTML = renderHNFeed(hnStories, hnFeedStatus, hnFeedError);
       return;
     }
 
     header.textContent = selectedFile || 'Select a file to review';
-    stats.innerHTML = '';
+    if (stats) stats.innerHTML = '';
     diffToolbar.style.display = 'none';
     viewer.innerHTML = \`
       <div class="placeholder">
@@ -2769,17 +2817,20 @@ function escapeHtml(text) {
 }
 
 // ===== Waiting Screen =====
-function renderWaitingScreen(hnStories, hnFeedStatus, hnFeedError) {
+function renderWaitingScreen(hnStories, hnFeedStatus, hnFeedError, hasMore = true, loadingMore = false) {
+  // Restore default header structure if it was replaced by content view
+  ensureDefaultHeaderStructure();
+
   const header = document.querySelector('.diff-header-title');
   const stats = document.getElementById('diff-stats');
   const viewer = document.getElementById('diff-viewer');
   const diffToolbar = document.getElementById('diff-toolbar');
 
   header.textContent = 'Waiting for changes...';
-  stats.innerHTML = '';
+  if (stats) stats.innerHTML = '';
   if (diffToolbar) diffToolbar.style.display = 'none';
 
-  const feedHtml = renderHNFeed(hnStories, hnFeedStatus, hnFeedError);
+  const feedHtml = renderHNFeed(hnStories, hnFeedStatus, hnFeedError, hasMore, loadingMore);
 
   viewer.innerHTML = \`
     <div class="waiting-screen">
@@ -2796,7 +2847,7 @@ function renderWaitingScreen(hnStories, hnFeedStatus, hnFeedError) {
 }
 
 // ===== Hacker News Feed =====
-function renderHNFeed(stories, status, error) {
+function renderHNFeed(stories, status, error, hasMore = true, loadingMore = false) {
   const isLoading = status === 'loading';
 
   let content = '';
@@ -2830,9 +2881,18 @@ function renderHNFeed(stories, status, error) {
       </div>
     \`;
   } else {
+    const loadMoreHtml = hasMore
+      ? \`<div class="hn-load-more">
+          <button class="hn-load-more-btn \${loadingMore ? 'loading' : ''}" onclick="loadMoreHNFeed()" \${loadingMore ? 'disabled' : ''}>
+            \${loadingMore ? '<span class="hn-loading-spinner-small"></span> Loading...' : 'Load More'}
+          </button>
+        </div>\`
+      : '<div class="hn-end-of-list">No more stories</div>';
+
     content = \`
-      <div class="hn-story-list">
+      <div class="hn-story-list" id="hn-story-list">
         \${stories.map((story, index) => renderHNStory(story, index)).join('')}
+        \${loadMoreHtml}
       </div>
     \`;
   }
@@ -2880,6 +2940,10 @@ window.refreshHNFeed = function() {
   vscode.postMessage({ type: 'refreshHNFeed' });
 };
 
+window.loadMoreHNFeed = function() {
+  vscode.postMessage({ type: 'loadMoreHNFeed' });
+};
+
 window.toggleFeed = function() {
   vscode.postMessage({ type: 'toggleFeed' });
 };
@@ -2893,4 +2957,141 @@ window.openHNStory = function(url, title) {
 window.openHNComments = function(storyId) {
   vscode.postMessage({ type: 'openHNComments', storyId: storyId });
 };
+
+// ===== Content View =====
+let currentContentUrl = '';
+
+function renderContentViewState(contentView) {
+  const diffViewer = document.getElementById('diff-viewer');
+  const viewerHeader = document.getElementById('viewer-header');
+  const diffToolbar = document.getElementById('diff-toolbar');
+  const diffStats = document.getElementById('diff-stats');
+
+  if (!diffViewer || !viewerHeader) return;
+
+  currentContentUrl = contentView.url;
+
+  // Update header
+  viewerHeader.innerHTML = renderContentViewHeader(contentView.title);
+
+  // Clear stats
+  if (diffStats) {
+    diffStats.innerHTML = '';
+  }
+
+  // Hide toolbar (not needed for content view)
+  if (diffToolbar) {
+    diffToolbar.style.display = 'none';
+  }
+
+  // Render content view
+  diffViewer.innerHTML = renderContentViewHtml(contentView);
+
+  // Attach event listeners
+  attachContentViewListeners();
+}
+
+function renderContentViewHeader(title) {
+  const truncatedTitle = title.length > 40 ? title.substring(0, 40) + '...' : title;
+
+  return \`
+    <span class="diff-header-icon">🌐</span>
+    <span class="diff-header-title content-title" title="\${escapeHtml(title)}">\${escapeHtml(truncatedTitle)}</span>
+    <div class="content-view-actions">
+      <button class="content-action-btn" id="content-back-btn" title="Back to previous view">
+        ← Back
+      </button>
+      <button class="content-action-btn" id="content-external-btn" title="Open in browser">
+        ↗ Open in Browser
+      </button>
+    </div>
+  \`;
+}
+
+function renderContentViewHtml(contentView) {
+  return \`
+    <div class="content-view">
+      <div class="content-view-loading" id="content-loading">
+        <div class="loading-spinner"></div>
+        <span>Loading content...</span>
+      </div>
+      <iframe
+        class="content-view-iframe"
+        id="content-iframe"
+        src="\${escapeHtml(contentView.url)}"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      ></iframe>
+      <div class="content-view-error hidden" id="content-error">
+        <div class="error-icon">⚠️</div>
+        <div class="error-text">Failed to load content</div>
+        <div class="error-actions">
+          <button class="error-btn" id="content-retry-btn">Retry</button>
+          <button class="error-btn" id="content-external-error-btn">Open in Browser</button>
+        </div>
+      </div>
+    </div>
+  \`;
+}
+
+function attachContentViewListeners() {
+  const backBtn = document.getElementById('content-back-btn');
+  const externalBtn = document.getElementById('content-external-btn');
+  const iframe = document.getElementById('content-iframe');
+  const retryBtn = document.getElementById('content-retry-btn');
+  const externalErrorBtn = document.getElementById('content-external-error-btn');
+
+  if (backBtn) {
+    backBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'closeContentView' });
+    }, { signal: getSignal() });
+  }
+
+  if (externalBtn) {
+    externalBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'openContentExternal', url: currentContentUrl });
+    }, { signal: getSignal() });
+  }
+
+  if (iframe) {
+    iframe.addEventListener('load', () => {
+      const loading = document.getElementById('content-loading');
+      if (loading) loading.classList.add('hidden');
+    }, { signal: getSignal() });
+
+    iframe.addEventListener('error', () => {
+      handleContentError();
+    }, { signal: getSignal() });
+  }
+
+  if (retryBtn) {
+    retryBtn.addEventListener('click', () => {
+      retryContent();
+    }, { signal: getSignal() });
+  }
+
+  if (externalErrorBtn) {
+    externalErrorBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'openContentExternal', url: currentContentUrl });
+    }, { signal: getSignal() });
+  }
+}
+
+function handleContentError() {
+  const loading = document.getElementById('content-loading');
+  const error = document.getElementById('content-error');
+  if (loading) loading.classList.add('hidden');
+  if (error) error.classList.remove('hidden');
+}
+
+function retryContent() {
+  const iframe = document.getElementById('content-iframe');
+  const loading = document.getElementById('content-loading');
+  const error = document.getElementById('content-error');
+
+  if (iframe) {
+    if (loading) loading.classList.remove('hidden');
+    if (error) error.classList.add('hidden');
+    iframe.src = iframe.src; // Reload
+  }
+}
 `;

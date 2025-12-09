@@ -72,11 +72,25 @@ export interface IPanelStateManager {
 
     // HN feed operations
     setHNFeedLoading(): void;
-    setHNStories(stories: HNStoryInfo[], fetchedAt: number): void;
+    setHNStories(stories: HNStoryInfo[], fetchedAt: number, hasMore: boolean): void;
     setHNFeedError(error: string): void;
     clearHNFeed(): void;
+    setHNLoadingMore(loading: boolean): void;
 
     // HN feed visibility toggle
     setShowHNFeed(show: boolean): void;
     toggleHNFeed(): void;
+
+    // Content view operations
+    /**
+     * Open content view with specified URL and title
+     * @param url URL to display in iframe
+     * @param title Title to show in content view header
+     */
+    openContentView(url: string, title: string): void;
+
+    /**
+     * Close content view and return to previous view
+     */
+    closeContentView(): void;
 }

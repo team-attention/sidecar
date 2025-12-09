@@ -78,10 +78,11 @@ export class PanelStateManager implements IPanelStateManager {
     }
 
     selectFile(path: string | null): void {
-        if (this.state.selectedFile !== path) {
+        if (this.state.selectedFile !== path || this.state.contentView) {
             this.state = {
                 ...this.state,
                 selectedFile: path,
+                contentView: null, // Auto-close content view when selecting file
             };
             this.render();
         }
@@ -479,11 +480,13 @@ export class PanelStateManager implements IPanelStateManager {
         this.render();
     }
 
-    setHNStories(stories: HNStoryInfo[], fetchedAt: number): void {
+    setHNStories(stories: HNStoryInfo[], fetchedAt: number, hasMore: boolean): void {
         this.state.hnStories = stories;
         this.state.hnFeedStatus = 'success';
         this.state.hnFeedError = undefined;
         this.state.hnLastFetchTime = fetchedAt;
+        this.state.hnHasMore = hasMore;
+        this.state.hnLoadingMore = false;
         this.render();
     }
 
@@ -498,6 +501,13 @@ export class PanelStateManager implements IPanelStateManager {
         this.state.hnFeedStatus = 'idle';
         this.state.hnFeedError = undefined;
         this.state.hnLastFetchTime = undefined;
+        this.state.hnHasMore = true;
+        this.state.hnLoadingMore = false;
+        this.render();
+    }
+
+    setHNLoadingMore(loading: boolean): void {
+        this.state.hnLoadingMore = loading;
         this.render();
     }
 
@@ -513,6 +523,24 @@ export class PanelStateManager implements IPanelStateManager {
 
     toggleHNFeed(): void {
         this.setShowHNFeed(!this.state.showHNFeed);
+    }
+
+    // ===== Content view operations =====
+
+    openContentView(url: string, title: string): void {
+        this.state = {
+            ...this.state,
+            contentView: { url, title },
+        };
+        this.render();
+    }
+
+    closeContentView(): void {
+        this.state = {
+            ...this.state,
+            contentView: null,
+        };
+        this.render();
     }
 
     // ===== Private =====

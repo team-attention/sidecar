@@ -117,6 +117,16 @@ export interface AIStatus {
 }
 
 /**
+ * State for displaying external content (HN articles, URLs) in main panel
+ */
+export interface ContentViewState {
+    /** URL to display in iframe */
+    url: string;
+    /** Title to show in header */
+    title: string;
+}
+
+/**
  * Draft comment being edited (not yet submitted)
  */
 export interface DraftComment {
@@ -154,7 +164,11 @@ export interface PanelState {
     hnFeedStatus: HNFeedStatus;
     hnFeedError?: string;
     hnLastFetchTime?: number;
+    hnHasMore: boolean;
+    hnLoadingMore: boolean;
     showHNFeed: boolean;
+    /** Active content view state, null when not showing content */
+    contentView: ContentViewState | null;
 }
 
 /**
@@ -179,6 +193,9 @@ export function createInitialPanelState(): PanelState {
         hnFeedStatus: 'idle',
         hnFeedError: undefined,
         hnLastFetchTime: undefined,
+        hnHasMore: true,
+        hnLoadingMore: false,
         showHNFeed: false,
+        contentView: null,
     };
 }

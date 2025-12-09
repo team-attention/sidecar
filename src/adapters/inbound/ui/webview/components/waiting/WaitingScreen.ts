@@ -13,9 +13,11 @@ import { renderHNFeed, HNStory, HNFeedStatus } from './HNFeed';
 export function renderWaitingScreen(
   hnStories: HNStory[],
   hnFeedStatus: HNFeedStatus,
-  hnFeedError: string | null
+  hnFeedError: string | null,
+  hasMore: boolean = true,
+  loadingMore: boolean = false
 ): string {
-  const feedHtml = renderHNFeed(hnStories, hnFeedStatus, hnFeedError);
+  const feedHtml = renderHNFeed(hnStories, hnFeedStatus, hnFeedError, hasMore, loadingMore);
 
   return `
     <div class="waiting-screen">
@@ -38,7 +40,9 @@ export function renderWaitingScreen(
 export function showWaitingScreen(
   hnStories: HNStory[],
   hnFeedStatus: HNFeedStatus,
-  hnFeedError: string | null
+  hnFeedError: string | null,
+  hasMore: boolean = true,
+  loadingMore: boolean = false
 ): void {
   const header = document.querySelector('.diff-header-title');
   const stats = document.getElementById('diff-stats');
@@ -50,6 +54,6 @@ export function showWaitingScreen(
   if (diffToolbar) diffToolbar.style.display = 'none';
 
   if (viewer) {
-    viewer.innerHTML = renderWaitingScreen(hnStories, hnFeedStatus, hnFeedError);
+    viewer.innerHTML = renderWaitingScreen(hnStories, hnFeedStatus, hnFeedError, hasMore, loadingMore);
   }
 }

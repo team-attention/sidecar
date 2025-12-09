@@ -54,7 +54,9 @@ function renderHNStory(story: HNStory): string {
 export function renderHNFeed(
   stories: HNStory[],
   status: HNFeedStatus,
-  error: string | null
+  error: string | null,
+  hasMore: boolean = true,
+  loadingMore: boolean = false
 ): string {
   const isLoading = status === 'loading';
 
@@ -89,9 +91,18 @@ export function renderHNFeed(
       </div>
     `;
   } else {
+    const loadMoreHtml = hasMore
+      ? `<div class="hn-load-more">
+          <button class="hn-load-more-btn ${loadingMore ? 'loading' : ''}" onclick="loadMoreHNFeed()" ${loadingMore ? 'disabled' : ''}>
+            ${loadingMore ? '<span class="hn-loading-spinner-small"></span> Loading...' : 'Load More'}
+          </button>
+        </div>`
+      : '<div class="hn-end-of-list">No more stories</div>';
+
     content = `
-      <div class="hn-story-list">
+      <div class="hn-story-list" id="hn-story-list">
         ${stories.map((story) => renderHNStory(story)).join('')}
+        ${loadMoreHtml}
       </div>
     `;
   }
@@ -123,6 +134,10 @@ interface VSCodeAPI {
 export function setupHNFeedHandlers(vscode: VSCodeAPI): void {
   (window as unknown as Record<string, unknown>).refreshHNFeed = function () {
     vscode.postMessage({ type: 'refreshHNFeed' });
+  };
+
+  (window as unknown as Record<string, unknown>).loadMoreHNFeed = function () {
+    vscode.postMessage({ type: 'loadMoreHNFeed' });
   };
 
   (window as unknown as Record<string, unknown>).toggleFeed = function () {
