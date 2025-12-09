@@ -164,6 +164,7 @@ export class PanelStateManager implements IPanelStateManager {
             selectedFile: diff.file,
             diffViewMode: viewMode,
             showHNFeed: false,
+            contentView: null, // Clear content view when showing diff
         };
         this.render();
     }

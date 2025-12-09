@@ -464,8 +464,11 @@ async function renderState(state) {
   }
 
   // Check if waiting screen should be shown
+  // Don't show waiting screen if there are visible files (session or uncommitted with toggle on)
+  const hasVisibleFiles = state.sessionFiles.length > 0 ||
+    (state.showUncommitted && state.uncommittedFiles.length > 0);
   const shouldShowWaiting = state.aiStatus.active &&
-    (state.sessionFiles.length === 0 || state.showHNFeed);
+    (!hasVisibleFiles || state.showHNFeed);
 
   if (shouldShowWaiting) {
     renderWaitingScreen(state.hnStories, state.hnFeedStatus, state.hnFeedError, state.hnHasMore, state.hnLoadingMore);
