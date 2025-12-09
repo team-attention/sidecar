@@ -56,6 +56,13 @@
             "type": "string"
           },
           "description": "Glob patterns for files to track even if they are gitignored (e.g., ['dist/**', '.env.local'])"
+        },
+        "sidecar.fileWatchDebounceMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Debounce delay for file change events in milliseconds. Set to 0 to disable debouncing. (Default: 300ms)"
         }
       }
     }

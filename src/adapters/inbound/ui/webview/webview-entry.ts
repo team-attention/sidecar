@@ -13,7 +13,9 @@ import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
 
 // Import bundled languages (core set for smaller bundle)
 import langTypescript from 'shiki/dist/langs/typescript.mjs';
+import langTsx from 'shiki/dist/langs/tsx.mjs';
 import langJavascript from 'shiki/dist/langs/javascript.mjs';
+import langJsx from 'shiki/dist/langs/jsx.mjs';
 import langPython from 'shiki/dist/langs/python.mjs';
 import langJson from 'shiki/dist/langs/json.mjs';
 import langYaml from 'shiki/dist/langs/yaml.mjs';
@@ -32,7 +34,9 @@ let highlighter: HighlighterCore | null = null;
 
 const SUPPORTED_LANGUAGES = [
     langTypescript,
+    langTsx,
     langJavascript,
+    langJsx,
     langPython,
     langJson,
     langYaml,
@@ -140,11 +144,11 @@ async function highlightCodeBlock(
 
 const EXTENSION_TO_LANGUAGE: Record<string, string> = {
     '.ts': 'typescript',
-    '.tsx': 'typescript', // Falls back to TypeScript
+    '.tsx': 'tsx',
     '.mts': 'typescript',
     '.cts': 'typescript',
     '.js': 'javascript',
-    '.jsx': 'javascript', // Falls back to JavaScript
+    '.jsx': 'jsx',
     '.mjs': 'javascript',
     '.cjs': 'javascript',
     '.py': 'python',

@@ -78,6 +78,9 @@ export function activate(context: vscode.ExtensionContext) {
     aiDetectionController.activate(context);
     fileWatchController.activate(context);
 
+    // Register fileWatchController dispose for debounce timer cleanup
+    context.subscriptions.push({ dispose: () => fileWatchController.dispose() });
+
     // Start panel cleanup interval
     SidecarPanelAdapter.startCleanupInterval();
     context.subscriptions.push({ dispose: () => SidecarPanelAdapter.stopCleanupInterval() });

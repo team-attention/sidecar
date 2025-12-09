@@ -8,6 +8,14 @@ import { IGitPort } from '../../../application/ports/outbound/IGitPort';
 import { DiffDisplayState, ChunkDisplayInfo, FileInfo } from '../../../application/ports/outbound/PanelState';
 import { DiffResult } from '../../../domain/entities/Diff';
 
+/** Pending debounced event data */
+interface DebouncedEventData {
+    uri: vscode.Uri;
+    relativePath: string;
+    fileName: string;
+    timestamp: number;
+}
+
 /**
  * Fixed-size circular buffer to prevent memory growth.
  * When full, new items overwrite oldest entries.
@@ -79,6 +87,14 @@ export class FileWatchController {
     private pendingEvents = 0;
     private maxPendingEvents = 0;
 
+    // ===== Debounce =====
+    /** Per-file debounce timers */
+    private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
+    /** Stored event data for pending debounced events */
+    private pendingEventData: Map<string, DebouncedEventData> = new Map();
+    /** Current debounce delay in ms (0 = disabled) */
+    private debounceMs: number = 300;
+
     constructor() {
         this.gitignore = ignore();
         this.includePatterns = ignore();
@@ -144,6 +160,7 @@ export class FileWatchController {
         this.workspaceRoot = workspaceFolders[0].uri.fsPath;
         this.loadGitignore();
         this.loadIncludePatterns();
+        this.loadDebounceConfig();
     }
 
     private loadGitignore(): void {
@@ -171,10 +188,39 @@ export class FileWatchController {
         }
     }
 
+    private loadDebounceConfig(): void {
+        const config = vscode.workspace.getConfiguration('sidecar');
+        const configValue = config.get<number>('fileWatchDebounceMs', 300);
+        // Clamp to valid range
+        this.debounceMs = Math.max(0, Math.min(2000, configValue));
+        this.log(`Debounce config loaded: ${this.debounceMs}ms`);
+    }
+
     reload(): void {
         this.gitignore = ignore();
         this.includePatterns = ignore();
         this.initialize();
+    }
+
+    /**
+     * Cleanup all debounce timers and pending data.
+     * Called when extension deactivates.
+     */
+    dispose(): void {
+        const timerCount = this.debounceTimers.size;
+
+        // Clear all pending debounce timers
+        for (const [filePath, timer] of this.debounceTimers) {
+            clearTimeout(timer);
+            this.log(`[Debounce] Cleanup: ${filePath}`);
+        }
+
+        this.debounceTimers.clear();
+        this.pendingEventData.clear();
+
+        if (timerCount > 0) {
+            this.log(`Disposed: cleared ${timerCount} pending debounce timers`);
+        }
     }
 
     shouldTrack(uri: vscode.Uri): boolean {
@@ -198,6 +244,73 @@ export class FileWatchController {
         return true;
     }
 
+    /**
+     * Process a file change event (after debouncing).
+     * Contains the actual file change handling logic.
+     */
+    private async processFileChange(data: DebouncedEventData): Promise<void> {
+        const startTime = Date.now();
+        const { uri, relativePath, fileName } = data;
+
+        // Check if it's a directory
+        try {
+            const stat = await vscode.workspace.fs.stat(uri);
+            if (stat.type === vscode.FileType.Directory) {
+                this.log(`  Skip: directory`);
+                return;
+            }
+        } catch (error) {
+            this.log(`  Skip: stat failed`);
+            this.logError('stat', error);
+            return;
+        }
+
+        // Check if file should be tracked
+        if (!this.shouldTrack(uri)) {
+            this.log(`  Skip: shouldTrack=false`);
+            return;
+        }
+
+        // Skip if no active sessions
+        if (!this.sessions || this.sessions.size === 0) {
+            this.log(`  Skip: no sessions (size=${this.sessions?.size ?? 'undefined'})`);
+            return;
+        }
+
+        this.log(`  Processing: ${relativePath} (sessions=${this.sessions.size})`);
+
+        try {
+            // Git status query (once)
+            const gitStart = Date.now();
+            let status: 'added' | 'modified' | 'deleted' = 'modified';
+            if (this.gitPort && this.workspaceRoot) {
+                status = await this.gitPort.getFileStatus(this.workspaceRoot, relativePath);
+            }
+            const gitTime = Date.now() - gitStart;
+            if (gitTime > 100) {
+                this.log(`  ⚠️ Slow git status: ${gitTime}ms`);
+            }
+
+            // Notify all active sessions
+            for (const [terminalId, sessionContext] of this.sessions) {
+                const notifyStart = Date.now();
+                await this.notifyFileChange(sessionContext, relativePath, fileName, status);
+                const notifyTime = Date.now() - notifyStart;
+                if (notifyTime > 100) {
+                    this.log(`  ⚠️ Slow notifyFileChange for ${terminalId}: ${notifyTime}ms`);
+                }
+            }
+
+            this.processedCount++;
+            const totalTime = Date.now() - startTime;
+            if (totalTime > 200) {
+                this.log(`  ⚠️ Slow event processing: ${totalTime}ms total`);
+            }
+        } catch (error) {
+            this.logError('processFileChange', error);
+        }
+    }
+
     activate(context: vscode.ExtensionContext): void {
         this.debugChannel = vscode.window.createOutputChannel('Sidecar FileWatch');
         context.subscriptions.push(this.debugChannel);
@@ -205,86 +318,73 @@ export class FileWatchController {
         const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
 
         const handleFileChange = async (uri: vscode.Uri) => {
-            const startTime = Date.now();
             const relativePath = vscode.workspace.asRelativePath(uri);
+            const fileName = path.basename(relativePath);
 
-            // Track event
+            // Track event (immediate, before debounce)
             this.eventCount++;
             this.eventCountWindow.push(Date.now());
-            this.pendingEvents++;
-            this.maxPendingEvents = Math.max(this.maxPendingEvents, this.pendingEvents);
 
-            this.log(`📁 Event #${this.eventCount}: ${relativePath} (pending=${this.pendingEvents})`);
+            this.log(`📁 Event #${this.eventCount}: ${relativePath}`);
             this.logStats();
 
-            try {
-                const stat = await vscode.workspace.fs.stat(uri);
-                if (stat.type === vscode.FileType.Directory) {
-                    this.log(`  Skip: directory`);
+            // If debouncing disabled, process immediately
+            if (this.debounceMs === 0) {
+                this.pendingEvents++;
+                this.maxPendingEvents = Math.max(this.maxPendingEvents, this.pendingEvents);
+                try {
+                    await this.processFileChange({ uri, relativePath, fileName, timestamp: Date.now() });
+                } finally {
                     this.pendingEvents--;
-                    return;
                 }
-            } catch (error) {
-                this.log(`  Skip: stat failed`);
-                this.logError('stat', error);
-                this.pendingEvents--;
                 return;
             }
 
-            if (!this.shouldTrack(uri)) {
-                this.log(`  Skip: shouldTrack=false`);
-                this.pendingEvents--;
-                return;
+            // Cancel existing timer for this file
+            const existingTimer = this.debounceTimers.get(relativePath);
+            if (existingTimer) {
+                clearTimeout(existingTimer);
+                this.log(`[Debounce] Coalesced: ${relativePath}`);
+            } else {
+                this.log(`[Debounce] Scheduled: ${relativePath} (delay=${this.debounceMs}ms)`);
             }
 
-            // 활성 세션이 없으면 무시
-            if (!this.sessions || this.sessions.size === 0) {
-                this.log(`  Skip: no sessions (size=${this.sessions?.size ?? 'undefined'})`);
-                this.pendingEvents--;
-                return;
-            }
+            // Store latest event data
+            this.pendingEventData.set(relativePath, {
+                uri,
+                relativePath,
+                fileName,
+                timestamp: Date.now()
+            });
 
-            const fileName = path.basename(relativePath);
-            this.log(`  Processing: ${relativePath} (sessions=${this.sessions.size})`);
+            // Schedule debounced processing
+            const timer = setTimeout(async () => {
+                const eventData = this.pendingEventData.get(relativePath);
+                this.debounceTimers.delete(relativePath);
+                this.pendingEventData.delete(relativePath);
 
-            try {
-                // Git 상태 조회 (한 번만)
-                const gitStart = Date.now();
-                let status: 'added' | 'modified' | 'deleted' = 'modified';
-                if (this.gitPort && this.workspaceRoot) {
-                    status = await this.gitPort.getFileStatus(this.workspaceRoot, relativePath);
-                }
-                const gitTime = Date.now() - gitStart;
-                if (gitTime > 100) {
-                    this.log(`  ⚠️ Slow git status: ${gitTime}ms`);
-                }
-
-                // 모든 활성 세션에 파일 변경 전파
-                for (const [terminalId, sessionContext] of this.sessions) {
-                    const notifyStart = Date.now();
-                    await this.notifyFileChange(sessionContext, relativePath, fileName, status);
-                    const notifyTime = Date.now() - notifyStart;
-                    if (notifyTime > 100) {
-                        this.log(`  ⚠️ Slow notifyFileChange for ${terminalId}: ${notifyTime}ms`);
+                if (eventData) {
+                    this.log(`[Debounce] Fired: ${relativePath} (pending=${this.debounceTimers.size})`);
+                    this.pendingEvents++;
+                    this.maxPendingEvents = Math.max(this.maxPendingEvents, this.pendingEvents);
+                    try {
+                        await this.processFileChange(eventData);
+                    } finally {
+                        this.pendingEvents--;
                     }
                 }
+            }, this.debounceMs);
 
-                this.processedCount++;
-                const totalTime = Date.now() - startTime;
-                if (totalTime > 200) {
-                    this.log(`  ⚠️ Slow event processing: ${totalTime}ms total`);
-                }
-            } catch (error) {
-                this.logError('handleFileChange', error);
-            } finally {
-                this.pendingEvents--;
-            }
+            this.debounceTimers.set(relativePath, timer);
         };
 
         context.subscriptions.push(
             vscode.workspace.onDidChangeConfiguration(e => {
                 if (e.affectsConfiguration('sidecar.includeFiles')) {
                     this.reload();
+                }
+                if (e.affectsConfiguration('sidecar.fileWatchDebounceMs')) {
+                    this.loadDebounceConfig();
                 }
             })
         );

@@ -325,12 +325,13 @@ export class SidecarPanelAdapter {
             return;
         }
 
-        const scopes = await this.prefetchScopes(file, diffResult);
-        const displayState = this.createDiffDisplayState(diffResult, scopes);
-
-        // For markdown files, fetch full content for preview
+        // For markdown files, prefetch scopes and content in parallel
         if (isMarkdown) {
-            const fullContent = await this.readFullFileContent(file);
+            const [scopes, fullContent] = await Promise.all([
+                this.prefetchScopes(file, diffResult),
+                this.readFullFileContent(file)
+            ]);
+            const displayState = this.createDiffDisplayState(diffResult, scopes);
             if (fullContent !== null) {
                 displayState.newFileContent = fullContent;
                 displayState.changedLineNumbers = this.extractChangedLineNumbers(diffResult);
@@ -341,18 +342,21 @@ export class SidecarPanelAdapter {
             return;
         }
 
-        // For non-markdown files, also try to get scoped diff
-        let scopedDisplayState = null;
-        if (this.generateScopedDiffUseCase) {
-            try {
-                const scopedResult = await this.generateScopedDiffUseCase.execute(file);
-                if (scopedResult && scopedResult.hasScopeData) {
-                    scopedDisplayState = this.createScopedDiffDisplayState(scopedResult);
-                }
-            } catch (error) {
-                console.warn('[Sidecar] Scoped diff failed:', error);
-            }
-        }
+        // For non-markdown files, prefetch scopes and scoped diff in parallel
+        const [scopes, scopedResult] = await Promise.all([
+            this.prefetchScopes(file, diffResult),
+            this.generateScopedDiffUseCase
+                ? this.generateScopedDiffUseCase.execute(file).catch(error => {
+                    console.warn('[Sidecar] Scoped diff failed:', error);
+                    return null;
+                })
+                : Promise.resolve(null)
+        ]);
+
+        const displayState = this.createDiffDisplayState(diffResult, scopes);
+        const scopedDisplayState = scopedResult?.hasScopeData
+            ? this.createScopedDiffDisplayState(scopedResult)
+            : null;
 
         // Show both diff and scopedDiff (if available)
         this.panelStateManager.showDiff(displayState, scopedDisplayState ?? undefined);
