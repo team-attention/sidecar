@@ -32,8 +32,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "sidecar.showPanel",
-        "title": "Sidecar: Show Panel"
+        "command": "sidecar.resetAutoOpen",
+        "title": "Sidecar: Reset Auto-Open Setting"
+      },
+      {
+        "command": "sidecar.attachToTerminal",
+        "title": "Sidecar: Attach to Terminal"
       }
     ],
     "configuration": {

@@ -360,10 +360,12 @@ async function renderState(state: RenderState): Promise<void> {
   }
 
   // Check if waiting screen should be shown
+  // Show waiting screen when AI is active and no file is selected (even if files exist in sidebar)
   const hasVisibleFiles =
     state.sessionFiles.length > 0 ||
     (state.showUncommitted && state.uncommittedFiles.length > 0);
-  const shouldShowWaiting = state.aiStatus.active && (!hasVisibleFiles || state.showHNFeed);
+  const noFileSelected = !state.selectedFile;
+  const shouldShowWaiting = state.aiStatus.active && (noFileSelected || !hasVisibleFiles || state.showHNFeed);
 
   if (shouldShowWaiting) {
     ensureDefaultHeaderStructure();

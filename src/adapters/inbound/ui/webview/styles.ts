@@ -2117,6 +2117,41 @@ button:hover {
   margin-bottom: 24px;
 }
 
+.layout-guide {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.layout-hint {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.layout-diagram {
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--vscode-foreground);
+  opacity: 0.7;
+  white-space: pre;
+  display: inline-block;
+  text-align: left;
+  padding: 8px 16px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+}
+
+.layout-tip {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  margin-top: 8px;
+  font-style: italic;
+}
+
 .meanwhile-divider {
   display: flex;
   align-items: center;

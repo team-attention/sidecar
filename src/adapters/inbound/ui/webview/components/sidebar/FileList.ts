@@ -142,7 +142,7 @@ export function renderFileList(
   if (filteredFiles.length === 0) {
     list.innerHTML = searchActive
       ? '<div class="empty-text">No matching files</div>'
-      : '<div class="empty-text">Waiting for changes...</div>';
+      : '';
     return;
   }
 

@@ -8,3 +8,8 @@ export { IFileGlobber } from './IFileGlobber';
 export { ISymbolPort, ScopeInfo } from './ISymbolPort';
 export { SessionContext } from './SessionContext';
 export { IHNApiPort } from './IHNApiPort';
+export {
+  IWorkspaceStatePort,
+  WORKSPACE_STATE_KEYS,
+  AutoOpenPanelSetting,
+} from './IWorkspaceStatePort';

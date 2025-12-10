@@ -21,10 +21,23 @@ export function renderWaitingScreen(
 
   return `
     <div class="waiting-screen">
-      <div class="waiting-spinner"></div>
-      <div class="waiting-message">Watching for file changes...</div>
-
-      <div class="meanwhile-divider">Meanwhile</div>
+      <div class="layout-guide">
+        <div class="layout-hint">Recommended Layout</div>
+        <div class="layout-diagram">
+┌───────────────────────────────┐
+│           VS Code             │
+├────────────┬──────────────────┤
+│            │                  │
+│  Terminal  │                  │
+│ (AI Agent) │     Sidecar      │
+│            │                  │
+│            │                  │
+└────────────┴──────────────────┘
+        </div>
+        <div class="layout-tip">
+          Tip: Run <code>Terminal: Create New Terminal in Editor Area</code> command
+        </div>
+      </div>
 
       <div class="waiting-feed-container">
         ${feedHtml}
@@ -49,7 +62,7 @@ export function showWaitingScreen(
   const viewer = document.getElementById('diff-viewer');
   const diffToolbar = document.getElementById('diff-toolbar');
 
-  if (header) header.textContent = 'Waiting for changes...';
+  if (header) header.textContent = '';
   if (stats) stats.innerHTML = '';
   if (diffToolbar) diffToolbar.style.display = 'none';
 

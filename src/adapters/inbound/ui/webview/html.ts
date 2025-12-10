@@ -30,8 +30,7 @@ export const webviewHtml = `
       </div>
       <div id="search-results" class="search-results" style="display: none;"></div>
       <div id="files-list">
-        <div class="empty-text">Waiting for changes...</div>
-      </div>
+              </div>
     </div>
 
     <div class="section">

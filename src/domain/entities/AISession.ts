@@ -30,4 +30,10 @@ export class AISession {
             startTime: Date.now(),
         });
     }
+
+    static getDisplayName(type: AIType): string {
+        if (type === 'claude') return 'Claude';
+        if (type === 'codex') return 'Codex';
+        return 'Gemini';
+    }
 }

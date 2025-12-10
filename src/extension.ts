@@ -20,8 +20,10 @@ import {
     FastGlobGateway,
     VscodeLspGateway,
     HNApiGateway,
+    VscodeWorkspaceStateGateway,
 } from './adapters/outbound/gateways';
 import { FetchHNStoriesUseCase } from './application/useCases/FetchHNStoriesUseCase';
+import { WORKSPACE_STATE_KEYS } from './application/ports/outbound/IWorkspaceStatePort';
 
 // Infrastructure - Repositories
 import { JsonCommentRepository } from './infrastructure/repositories/JsonCommentRepository';
@@ -47,6 +49,7 @@ export function activate(context: vscode.ExtensionContext) {
     const fileGlobber = new FastGlobGateway();
     const lspGateway = new VscodeLspGateway();
     const hnApiGateway = new HNApiGateway();
+    const workspaceStateGateway = new VscodeWorkspaceStateGateway(context.workspaceState);
 
     // ===== Application Layer - Shared Use Cases =====
     const fetchHNStoriesUseCase = new FetchHNStoriesUseCase(hnApiGateway);
@@ -67,7 +70,8 @@ export function activate(context: vscode.ExtensionContext) {
         submitCommentsUseCase,
         diffService,
         lspGateway,
-        fetchHNStoriesUseCase
+        fetchHNStoriesUseCase,
+        workspaceStateGateway
     );
 
     const fileWatchController = new FileWatchController();
@@ -87,21 +91,20 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ===== Commands =====
 
-    // Show Panel (마지막 활성 패널 표시)
+    // Reset Auto-Open Setting
     context.subscriptions.push(
-        vscode.commands.registerCommand('sidecar.showPanel', () => {
-            if (SidecarPanelAdapter.currentPanel) {
-                SidecarPanelAdapter.currentPanel.show();
-            }
+        vscode.commands.registerCommand('sidecar.resetAutoOpen', async () => {
+            await workspaceStateGateway.set(WORKSPACE_STATE_KEYS.AUTO_OPEN_PANEL, 'ask');
+            vscode.window.showInformationMessage(
+                'Sidecar will ask before opening panel next time.'
+            );
         })
     );
 
-    // Focus Panel
+    // Attach to Terminal - manually attach Sidecar to existing terminal
     context.subscriptions.push(
-        vscode.commands.registerCommand('sidecar.focusPanel', () => {
-            if (SidecarPanelAdapter.currentPanel) {
-                SidecarPanelAdapter.currentPanel.show();
-            }
+        vscode.commands.registerCommand('sidecar.attachToTerminal', async () => {
+            await aiDetectionController.attachToTerminal();
         })
     );
 }

@@ -799,6 +799,8 @@ export class SidecarPanelAdapter {
     }
 
     public dispose(): void {
+        console.log(`[Sidecar] Panel dispose START: ${this.terminalId}`);
+
         // Remove from map first to prevent double cleanup
         SidecarPanelAdapter.activePanels.delete(this.terminalId);
 
@@ -811,9 +813,11 @@ export class SidecarPanelAdapter {
 
         // Fire callback
         try {
+            console.log(`[Sidecar] Calling onDisposeCallback for ${this.terminalId}`);
             this.onDisposeCallback?.();
+            console.log(`[Sidecar] onDisposeCallback completed for ${this.terminalId}`);
         } catch (e) {
-            // Ignore callback errors
+            console.error(`[Sidecar] onDisposeCallback error for ${this.terminalId}:`, e);
         }
 
         // Dispose all disposables safely

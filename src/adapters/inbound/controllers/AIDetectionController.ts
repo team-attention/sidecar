@@ -19,6 +19,11 @@ import { EditCommentUseCase } from '../../../application/useCases/EditCommentUse
 import { DeleteCommentUseCase } from '../../../application/useCases/DeleteCommentUseCase';
 import { SubmitCommentsUseCase } from '../../../application/useCases/SubmitCommentsUseCase';
 import { IFetchHNStoriesUseCase } from '../../../application/ports/inbound/IFetchHNStoriesUseCase';
+import {
+    IWorkspaceStatePort,
+    WORKSPACE_STATE_KEYS,
+    AutoOpenPanelSetting,
+} from '../../../application/ports/outbound/IWorkspaceStatePort';
 import { ScopeMappingService } from '../../../domain/services/ScopeMappingService';
 import { InMemorySnapshotRepository } from '../../../infrastructure/repositories/InMemorySnapshotRepository';
 import { VscodeTerminalGateway } from '../../outbound/gateways/VscodeTerminalGateway';
@@ -61,7 +66,8 @@ export class AIDetectionController {
         private readonly submitCommentsUseCase: SubmitCommentsUseCase,
         private readonly diffService: DiffService,
         private readonly symbolPort: ISymbolPort,
-        private readonly fetchHNStoriesUseCase?: IFetchHNStoriesUseCase
+        private readonly fetchHNStoriesUseCase?: IFetchHNStoriesUseCase,
+        private readonly workspaceStatePort?: IWorkspaceStatePort
     ) {}
 
     activate(context: vscode.ExtensionContext): void {
@@ -144,6 +150,8 @@ export class AIDetectionController {
             const terminal = event.terminal;
             const terminalId = this.getTerminalId(terminal);
 
+            this.log(`📥 handleCommandStart: cmd="${commandLine}", terminal="${terminal.name}", id=${terminalId}`);
+
             // Skip if already have an active session for this terminal
             if (this.sessions.has(terminalId)) {
                 this.log(`  Skip: session already exists for ${terminalId}`);
@@ -152,13 +160,13 @@ export class AIDetectionController {
 
             if (this.isClaudeCommand(commandLine)) {
                 this.log('🤖 Claude Code detected!');
-                await this.activateSidecar('claude', terminal);
+                await this.promptAndActivateSidecar('claude', terminal);
             } else if (this.isCodexCommand(commandLine)) {
                 this.log('🤖 Codex detected!');
-                await this.activateSidecar('codex', terminal);
+                await this.promptAndActivateSidecar('codex', terminal);
             } else if (this.isGeminiCommand(commandLine)) {
                 this.log('🤖 Gemini CLI detected!');
-                await this.activateSidecar('gemini', terminal);
+                await this.promptAndActivateSidecar('gemini', terminal);
             }
         } catch (error) {
             this.logError('handleCommandStart', error);
@@ -192,17 +200,73 @@ export class AIDetectionController {
                this.isGeminiCommand(commandLine);
     }
 
+    /**
+     * Prompt user before opening Sidecar panel.
+     * Respects saved preference (always/never/ask).
+     */
+    private async promptAndActivateSidecar(type: AIType, terminal: vscode.Terminal): Promise<void> {
+        const displayName = AISession.getDisplayName(type);
+
+        // Check saved preference
+        const setting = this.workspaceStatePort?.get<AutoOpenPanelSetting>(
+            WORKSPACE_STATE_KEYS.AUTO_OPEN_PANEL
+        ) ?? 'ask';
+
+        if (setting === 'never') {
+            this.log(`  Skip: user preference is 'never'`);
+            return;
+        }
+
+        if (setting === 'always') {
+            this.log(`  Auto-open: user preference is 'always'`);
+            await this.activateSidecar(type, terminal);
+            return;
+        }
+
+        // Ask user with QuickPick
+        const items: vscode.QuickPickItem[] = [
+            { label: '$(check) Yes', description: 'Open panel', picked: true },
+            { label: '$(x) No', description: 'Not this time' },
+            { label: '$(sync) Always', description: "Don't ask again" },
+            { label: '$(circle-slash) Never', description: 'Never open automatically' },
+        ];
+
+        const pick = await vscode.window.showQuickPick(items, {
+            title: `$(hubot) ${displayName} detected! Open Sidecar?`,
+            placeHolder: 'Choose an option',
+            ignoreFocusOut: true,
+        });
+
+        if (!pick) {
+            this.log(`  User dismissed picker`);
+            return;
+        }
+
+        if (pick.label.includes('Yes')) {
+            await this.activateSidecar(type, terminal);
+        } else if (pick.label.includes('Always')) {
+            await this.workspaceStatePort?.set(WORKSPACE_STATE_KEYS.AUTO_OPEN_PANEL, 'always');
+            await this.activateSidecar(type, terminal);
+        } else if (pick.label.includes('Never')) {
+            await this.workspaceStatePort?.set(WORKSPACE_STATE_KEYS.AUTO_OPEN_PANEL, 'never');
+            this.log(`  User chose 'Never' - preference saved`);
+        } else {
+            this.log(`  User declined to open panel`);
+        }
+    }
+
     private async activateSidecar(type: AIType, terminal: vscode.Terminal): Promise<void> {
         const startTime = Date.now();
-        this.log(`🟢 activateSidecar START: type=${type}`);
+        this.log(`🟢 activateSidecar START: type=${type}, terminal="${terminal.name}"`);
 
         // 터미널 ID 등록 (처음 보는 터미널이면 새 ID 할당)
         const terminalId = this.registerTerminalId(terminal);
+        this.log(`🟢 activateSidecar: registered terminalId=${terminalId}`);
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
         // 이미 이 터미널에 세션이 있으면 무시
         if (this.sessions.has(terminalId)) {
-            this.log(`  Skip: session already exists`);
+            this.log(`  Skip: session already exists for ${terminalId}`);
             return;
         }
 
@@ -302,9 +366,13 @@ export class AIDetectionController {
         };
 
         this.sessions.set(terminalId, context);
+        this.log(`🟢 activateSidecar: session created, totalSessions=${this.sessions.size}`);
 
         // Panel dispose 시 세션 정리
-        panel.onDispose(() => this.flushSession(terminalId));
+        panel.onDispose(() => {
+            this.log(`📤 Panel onDispose callback triggered for ${terminalId}`);
+            this.flushSession(terminalId);
+        });
 
         // 터미널 등록
         this.terminalGateway.registerTerminal(terminalId, terminal);
@@ -312,15 +380,9 @@ export class AIDetectionController {
         // AI 상태 업데이트
         stateManager.setAIStatus({ active: true, type });
 
-        // 알림
-        vscode.window.showInformationMessage(
-            `${session.displayName} detected! Sidecar is now active.`,
-            'Show Panel'
-        ).then(action => {
-            if (action === 'Show Panel') {
-                panel.show();
-            }
-        });
+        // 패널 자동 표시
+        panel.show();
+        this.log(`🟢 activateSidecar: panel.show() called`);
 
         const elapsed = Date.now() - startTime;
         this.log(`🟢 activateSidecar END: terminalId=${terminalId}, elapsed=${elapsed}ms, totalSessions=${this.sessions.size}`);
@@ -338,21 +400,24 @@ export class AIDetectionController {
 
         this.log(`🔄 flushSession START: ${context.session.type} (${terminalId})`);
 
+        // 세션 먼저 제거 (에러 발생해도 세션은 삭제되도록)
+        this.sessions.delete(terminalId);
+
         try {
+            // 렌더 콜백 먼저 해제 (dispose된 webview 접근 방지)
+            (context.stateManager as PanelStateManager).clearRenderCallback();
+
             // 리소스 정리
             context.snapshotRepository.clear();
             context.stateManager.reset();
-            (context.stateManager as PanelStateManager).clearRenderCallback();
 
             // 터미널 등록 해제
             this.terminalGateway.unregisterTerminal(terminalId);
 
-            // 세션 제거
-            this.sessions.delete(terminalId);
-
             this.log(`🔄 flushSession END: remainingSessions=${this.sessions.size}`);
         } catch (error) {
-            this.logError('flushSession', error);
+            this.logError('flushSession cleanup', error);
+            this.log(`🔄 flushSession END (with error): remainingSessions=${this.sessions.size}`);
         }
     }
 
@@ -477,5 +542,123 @@ export class AIDetectionController {
      */
     getSessions(): Map<string, SessionContext> {
         return this.sessions;
+    }
+
+    /**
+     * Show picker to attach Sidecar to an existing terminal.
+     * Shows terminals that don't have a Sidecar panel attached.
+     */
+    async attachToTerminal(): Promise<void> {
+        const terminals = vscode.window.terminals;
+
+        if (terminals.length === 0) {
+            vscode.window.showInformationMessage('No terminals available.');
+            return;
+        }
+
+        // Build list of terminals without active sessions
+        const availableTerminals: Array<{
+            terminal: vscode.Terminal;
+            terminalId: string;
+            label: string;
+            hasSession: boolean;
+        }> = [];
+
+        for (const terminal of terminals) {
+            const terminalId = this.getTerminalId(terminal);
+            const hasSession = this.sessions.has(terminalId);
+            availableTerminals.push({
+                terminal,
+                terminalId,
+                label: terminal.name || `Terminal ${terminalId}`,
+                hasSession,
+            });
+        }
+
+        // Log current state for debugging
+        this.log(`📋 attachToTerminal: ${availableTerminals.length} terminals`);
+        for (const t of availableTerminals) {
+            const panel = SidecarPanelAdapter.getPanel(t.terminalId);
+            this.log(`  - ${t.label} (${t.terminalId}): session=${t.hasSession}, panel=${!!panel}`);
+        }
+
+        // Clean up orphaned sessions (session exists but panel is gone)
+        for (const t of availableTerminals) {
+            if (t.hasSession) {
+                const panel = SidecarPanelAdapter.getPanel(t.terminalId);
+                if (!panel) {
+                    // Session exists but panel is gone - clean up
+                    this.log(`🧹 Cleaning orphaned session: ${t.terminalId}`);
+                    this.flushSession(t.terminalId);
+                    t.hasSession = false;
+                }
+            }
+        }
+
+        // Re-filter after cleanup
+        const terminalsWithoutSession = availableTerminals.filter((t) => !t.hasSession);
+
+        if (terminalsWithoutSession.length === 0) {
+            this.log(`📋 All terminals have sessions, showing "show existing panel" picker`);
+            // All have sessions with valid panels - offer to show existing panel
+            const sessionsWithPanels = availableTerminals.filter((t) => t.hasSession);
+            if (sessionsWithPanels.length > 0) {
+                const items: vscode.QuickPickItem[] = sessionsWithPanels.map((t) => ({
+                    label: t.label,
+                    description: 'Show existing panel',
+                }));
+
+                const pick = await vscode.window.showQuickPick(items, {
+                    title: 'Show Sidecar Panel',
+                    placeHolder: 'All terminals have panels. Select one to show:',
+                });
+
+                if (pick) {
+                    const selected = sessionsWithPanels.find((t) => t.label === pick.label);
+                    if (selected) {
+                        this.log(`📋 User selected "${selected.label}" (${selected.terminalId})`);
+                        const panel = SidecarPanelAdapter.getPanel(selected.terminalId);
+                        this.log(`📋 getPanel returned: ${panel ? 'found' : 'undefined'}`);
+                        if (panel) {
+                            panel.show();
+                            this.log(`📋 panel.show() called`);
+                        } else {
+                            this.log(`📋 ERROR: panel is undefined but session exists!`);
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
+        // If only one terminal without session, auto-attach
+        if (terminalsWithoutSession.length === 1) {
+            this.log(`📋 Only one terminal available, auto-attaching`);
+            await this.activateSidecar('claude', terminalsWithoutSession[0].terminal);
+            return;
+        }
+
+        // Show quick pick for terminals without session
+        const items: vscode.QuickPickItem[] = terminalsWithoutSession.map((t) => ({
+            label: t.label,
+            description: `ID: ${t.terminalId}`,
+        }));
+
+        const pick = await vscode.window.showQuickPick(items, {
+            title: 'Attach Sidecar to Terminal',
+            placeHolder: 'Select a terminal to attach Sidecar panel',
+        });
+
+        if (!pick) {
+            return;
+        }
+
+        const selected = terminalsWithoutSession.find((t) => t.label === pick.label);
+        if (!selected) {
+            return;
+        }
+
+        // Activate sidecar for this terminal (default to claude)
+        await this.activateSidecar('claude', selected.terminal);
     }
 }

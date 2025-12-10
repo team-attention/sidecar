@@ -5,3 +5,4 @@ export { VscodeNotificationGateway } from './VscodeNotificationGateway';
 export { FastGlobGateway } from './FastGlobGateway';
 export { VscodeLspGateway } from './VscodeLspGateway';
 export { HNApiGateway } from './HNApiGateway';
+export { VscodeWorkspaceStateGateway } from './VscodeWorkspaceStateGateway';
