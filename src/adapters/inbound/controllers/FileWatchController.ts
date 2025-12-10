@@ -704,6 +704,7 @@ export class FileWatchController {
     /**
      * Handle git commit - refresh session files
      * Remove files that are no longer changed after commit
+     * Also removes whitelist files (gitignored files tracked via includeFiles)
      */
     private async handleCommit(): Promise<void> {
         if (!this.sessions || this.sessions.size === 0) {
@@ -728,13 +729,18 @@ export class FileWatchController {
             const currentState = stateManager.getState();
 
             // Find files that were committed (no longer in uncommitted list)
-            const committedFiles = currentState.sessionFiles.filter(
-                f => !uncommittedPaths.has(f.path)
-            );
+            // Also include whitelist files (gitignored) - they should be flushed on commit too
+            const filesToRemove = currentState.sessionFiles.filter(f => {
+                const isUncommitted = uncommittedPaths.has(f.path);
+                const isWhitelisted = this.includePatterns.ignores(f.path);
+                // Remove if: (git-tracked AND committed) OR (whitelist file)
+                return !isUncommitted || isWhitelisted;
+            });
 
-            // Remove committed files from session
-            for (const file of committedFiles) {
-                this.log(`  Removing committed file: ${file.path}`);
+            // Remove files from session
+            for (const file of filesToRemove) {
+                const reason = this.includePatterns.ignores(file.path) ? 'whitelist' : 'committed';
+                this.log(`  Removing ${reason} file: ${file.path}`);
                 stateManager.removeSessionFile(file.path);
             }
 
@@ -746,7 +752,7 @@ export class FileWatchController {
             }));
             stateManager.setBaseline(baselineFiles);
 
-            this.log(`  Session ${terminalId}: removed ${committedFiles.length} committed files`);
+            this.log(`  Session ${terminalId}: removed ${filesToRemove.length} files`);
         }
     }
 
