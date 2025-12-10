@@ -86,6 +86,29 @@ export function showInlineCommentForm(
     { signal: handlers.getSignal() }
   );
 
+  // Enter to submit, Cmd/Ctrl+Enter for newline
+  textarea.addEventListener(
+    'keydown',
+    (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        if (e.metaKey || e.ctrlKey) {
+          // Cmd/Ctrl+Enter: insert newline
+          e.preventDefault();
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          textarea.value = textarea.value.substring(0, start) + '\n' + textarea.value.substring(end);
+          textarea.selectionStart = textarea.selectionEnd = start + 1;
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (!e.shiftKey) {
+          // Enter (without modifiers): submit
+          e.preventDefault();
+          submitInlineComment(handlers);
+        }
+      }
+    },
+    { signal: handlers.getSignal() }
+  );
+
   // Save initial draft if there's existing text
   if (existingText) {
     saveDraftComment(currentFile, startLine, actualEndLine, existingText, handlers);

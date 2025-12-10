@@ -112,16 +112,51 @@ export function renderComments(comments: Comment[]): void {
 }
 
 /**
+ * Setup keyboard handler for comment textarea
+ * Enter to save, Cmd/Ctrl+Enter for newline
+ */
+function setupCommentTextareaKeyboard(
+  textarea: HTMLTextAreaElement,
+  onSave: () => void
+): void {
+  textarea.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      if (e.metaKey || e.ctrlKey) {
+        // Cmd/Ctrl+Enter: insert newline
+        e.preventDefault();
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        textarea.value = textarea.value.substring(0, start) + '\n' + textarea.value.substring(end);
+        textarea.selectionStart = textarea.selectionEnd = start + 1;
+      } else if (!e.shiftKey) {
+        // Enter (without modifiers): save
+        e.preventDefault();
+        onSave();
+      }
+    }
+  });
+}
+
+/**
  * Start editing a comment
  */
-export function startEditComment(id: string): void {
+export function startEditComment(id: string, handlers?: CommentHandlers): void {
   const textEl = document.getElementById('comment-text-' + id);
   const editEl = document.getElementById('comment-edit-' + id);
   if (textEl) textEl.style.display = 'none';
   if (editEl) {
     editEl.style.display = 'block';
-    const textarea = editEl.querySelector('textarea');
-    if (textarea) textarea.focus();
+    const textarea = editEl.querySelector('textarea') as HTMLTextAreaElement | null;
+    if (textarea) {
+      textarea.focus();
+      // Setup keyboard handler if handlers provided and not already set
+      if (handlers && !textarea.dataset.keyboardSetup) {
+        textarea.dataset.keyboardSetup = 'true';
+        setupCommentTextareaKeyboard(textarea, () => {
+          saveEditComment(id, handlers);
+        });
+      }
+    }
   }
 }
 
@@ -193,7 +228,7 @@ export function toggleSubmittedHistory(): void {
  */
 export function registerCommentHandlers(handlers: CommentHandlers): void {
   const win = window as unknown as Record<string, unknown>;
-  win.startEditComment = startEditComment;
+  win.startEditComment = (id: string) => startEditComment(id, handlers);
   win.cancelEditComment = cancelEditComment;
   win.saveEditComment = (id: string) => saveEditComment(id, handlers);
   win.deleteComment = (id: string) => deleteComment(id, handlers);
