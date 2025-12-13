@@ -1,5 +1,14 @@
 export type AIType = 'claude' | 'codex' | 'gemini';
 
+export type AgentStatus = 'working' | 'idle' | 'waiting' | 'error';
+
+export interface AgentMetadata {
+    name: string;
+    role?: string;
+    status: AgentStatus;
+    fileCount: number;
+}
+
 export interface AISessionData {
     type: AIType;
     terminalId: string;
@@ -10,6 +19,7 @@ export class AISession {
     readonly type: AIType;
     readonly terminalId: string;
     readonly startTime: number;
+    private _agentMetadata?: AgentMetadata;
 
     constructor(data: AISessionData) {
         this.type = data.type;
@@ -21,6 +31,22 @@ export class AISession {
         if (this.type === 'claude') return 'Claude';
         if (this.type === 'codex') return 'Codex';
         return 'Gemini';
+    }
+
+    get agentMetadata(): AgentMetadata | undefined {
+        return this._agentMetadata;
+    }
+
+    setAgentMetadata(metadata: AgentMetadata): void {
+        this._agentMetadata = metadata;
+    }
+
+    get agentName(): string {
+        return this._agentMetadata?.name ?? this.displayName;
+    }
+
+    get agentStatus(): AgentStatus {
+        return this._agentMetadata?.status ?? 'idle';
     }
 
     static create(type: AIType, terminalId: string): AISession {

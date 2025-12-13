@@ -12,6 +12,10 @@ export interface FileItem {
   status: 'added' | 'modified' | 'deleted';
   isUncommitted?: boolean;
   matchType?: 'path' | 'content';
+  /** Agent name for aggregated view */
+  agentName?: string;
+  /** Color index for agent badge (0-5, -1 for multi-agent) */
+  agentColorIndex?: number;
 }
 
 export interface DiffData {
@@ -167,10 +171,20 @@ export function renderFileList(
         const contentMatchClass =
           file.matchType === 'content' ? 'content-match' : '';
 
+        // Agent badge for aggregated view
+        let agentBadgeHtml = '';
+        if (file.agentName) {
+          const colorClass = file.agentColorIndex === -1
+            ? 'agent-badge--multi'
+            : `agent-badge--color-${file.agentColorIndex ?? 0}`;
+          agentBadgeHtml = `<span class="agent-badge ${colorClass}">${escapeHtml(file.agentName)}</span>`;
+        }
+
         return `
         <div class="file-item ${isSelected ? 'selected' : ''} ${uncommittedClass} ${contentMatchClass}" data-file="${file.path}">
           <span class="file-icon">📄</span>
           <span class="file-name" title="${file.path}">${file.name}</span>
+          ${agentBadgeHtml}
           <span class="file-badge ${badgeClass}">${badgeText}</span>
         </div>
       `;

@@ -32,4 +32,20 @@ export class VscodeTerminalGateway implements ITerminalPort {
             terminal.show();
         }
     }
+
+    async createTerminal(name: string, cwd?: string): Promise<string> {
+        const terminal = vscode.window.createTerminal({
+            name,
+            cwd,
+            location: { viewColumn: vscode.ViewColumn.One },
+        });
+        terminal.show();
+
+        const processId = await terminal.processId;
+        const terminalId = processId?.toString() ?? `terminal-${Date.now()}`;
+
+        this.registerTerminal(terminalId, terminal);
+
+        return terminalId;
+    }
 }

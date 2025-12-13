@@ -16,7 +16,7 @@ import {
 } from '../components/sidebar/Sidebar';
 import { renderFileList } from '../components/sidebar/FileList';
 import { renderComments, registerCommentHandlers, type CommentHandlers } from '../components/sidebar/Comments';
-import { renderAIStatus } from '../components/sidebar/AIStatus';
+import { renderAIStatus, renderAgentHeader, AgentDisplayInfo } from '../components/sidebar/AIStatus';
 import { setupFileSearchHandlers } from '../components/sidebar/FileSearch';
 import { setupHNFeedHandlers, renderHNFeed } from '../components/waiting/HNFeed';
 import { showWaitingScreen } from '../components/waiting/WaitingScreen';
@@ -181,6 +181,9 @@ interface RenderState {
   showHNFeed: boolean;
   fileScrollPositions: Record<string, number>;
   draftComment: DraftComment | null;
+  // Multi-agent fields
+  agentInfo?: AgentDisplayInfo;
+  isAggregatedView?: boolean;
 }
 
 interface DiffData {
@@ -352,6 +355,7 @@ async function renderState(state: RenderState): Promise<void> {
   renderComments(transformedComments);
 
   renderAIStatus(state.aiStatus);
+  renderAgentHeader(state.agentInfo, state.isAggregatedView);
 
   // Content view takes precedence
   if (state.contentView) {

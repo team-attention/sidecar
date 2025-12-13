@@ -1,6 +1,7 @@
 import { DiffResult, DiffChunk, DiffLine } from '../../../domain/entities/Diff';
 import { ScopeLine } from '../../../domain/entities/ScopedDiff';
 import { ScopeInfo } from './ISymbolPort';
+import { AgentStatus } from '../../../domain/entities/AISession';
 
 export type DiffViewMode = 'diff' | 'preview' | 'scope';
 
@@ -29,6 +30,10 @@ export interface FileInfo {
     path: string;
     name: string;
     status: 'modified' | 'added' | 'deleted';
+    /** Agent name attribution for aggregated view */
+    agentName?: string;
+    /** Color index for agent badge (0-5 for 6-color palette, -1 for multi-agent) */
+    agentColorIndex?: number;
 }
 
 /**
@@ -127,6 +132,14 @@ export interface ContentViewState {
 }
 
 /**
+ * Agent display information for multi-agent mode
+ */
+export interface AgentDisplayInfo {
+    name: string;
+    status: AgentStatus;
+}
+
+/**
  * Draft comment being edited (not yet submitted)
  */
 export interface DraftComment {
@@ -169,6 +182,12 @@ export interface PanelState {
     showHNFeed: boolean;
     /** Active content view state, null when not showing content */
     contentView: ContentViewState | null;
+    /** Agent display info (name and status) for multi-agent mode */
+    agentInfo?: AgentDisplayInfo;
+    /** Whether currently showing aggregated view of all agents */
+    isAggregatedView?: boolean;
+    /** Thread ID for per-thread comment filtering */
+    threadId?: string;
 }
 
 /**
@@ -197,5 +216,7 @@ export function createInitialPanelState(): PanelState {
         hnLoadingMore: false,
         showHNFeed: false,
         contentView: null,
+        agentInfo: undefined,
+        isAggregatedView: false,
     };
 }

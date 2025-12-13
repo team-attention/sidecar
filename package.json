@@ -30,6 +30,26 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sidecar",
+          "title": "Sidecar",
+          "icon": "$(hubot)"
+        }
+      ]
+    },
+    "views": {
+      "sidecar": [
+        {
+          "type": "webview",
+          "id": "sidecarThreadList",
+          "name": "Threads",
+          "icon": "$(list-tree)",
+          "contextualTitle": "Sidecar Threads"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "sidecar.resetAutoOpen",
@@ -38,6 +58,27 @@
       {
         "command": "sidecar.attachToTerminal",
         "title": "Sidecar: Attach to Terminal"
+      },
+      {
+        "command": "sidecar.selectThread",
+        "title": "Sidecar: Select Thread"
+      },
+      {
+        "command": "sidecar.cycleThreads",
+        "title": "Sidecar: Cycle Through Threads"
+      },
+      {
+        "command": "sidecar.createAgent",
+        "title": "Sidecar: Create New Agent",
+        "icon": "$(add)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "sidecar.cycleThreads",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a",
+        "when": "sidecar.hasMultipleThreads"
       }
     ],
     "configuration": {

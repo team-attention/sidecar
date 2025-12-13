@@ -1,4 +1,5 @@
-import { AISession } from '../../../domain/entities/AISession';
+import { AISession, AgentMetadata } from '../../../domain/entities/AISession';
+import { ThreadState } from '../../../domain/entities/ThreadState';
 import { ISnapshotRepository } from './ISnapshotRepository';
 import { IPanelStateManager } from '../../services/IPanelStateManager';
 import { IGenerateDiffUseCase } from '../inbound/IGenerateDiffUseCase';
@@ -36,4 +37,10 @@ export interface SessionContext {
 
     /** 패널 dispose 콜백 (AIDetectionController에서 설정) */
     disposePanel: () => void;
+
+    /** 에이전트 메타데이터 (멀티 에이전트 지원용) */
+    agentMetadata?: AgentMetadata;
+
+    /** 스레드 상태 (멀티 스레드 지원용) */
+    threadState?: ThreadState;
 }

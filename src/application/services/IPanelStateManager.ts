@@ -1,4 +1,4 @@
-import { PanelState, FileInfo, CommentInfo, AIStatus, DiffDisplayState, DiffViewMode, DraftComment, ScopedDiffDisplayState, HNStoryInfo } from '../ports/outbound/PanelState';
+import { PanelState, FileInfo, CommentInfo, AIStatus, DiffDisplayState, DiffViewMode, DraftComment, ScopedDiffDisplayState, HNStoryInfo, AgentDisplayInfo } from '../ports/outbound/PanelState';
 
 /**
  * Panel state manager - manages UI state and triggers rendering
@@ -93,4 +93,29 @@ export interface IPanelStateManager {
      * Close content view and return to previous view
      */
     closeContentView(): void;
+
+    // Agent metadata operations
+    /**
+     * Set agent display info for multi-agent mode.
+     * Pass undefined to clear agent info.
+     */
+    setAgentInfo(info: AgentDisplayInfo | undefined): void;
+
+    /**
+     * Set aggregated view mode.
+     * When true, panel shows files from all agents.
+     */
+    setAggregatedView(isAggregated: boolean): void;
+
+    // Thread context operations
+    /**
+     * Set the thread ID for this panel.
+     * Comments will be associated with this thread.
+     */
+    setThreadId(threadId: string | undefined): void;
+
+    /**
+     * Get the current thread ID.
+     */
+    getThreadId(): string | undefined;
 }

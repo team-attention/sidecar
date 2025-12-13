@@ -6,6 +6,7 @@ export interface AddCommentInput {
     endLine?: number;
     text: string;
     codeContext: string;
+    threadId?: string;
 }
 
 export interface IAddCommentUseCase {

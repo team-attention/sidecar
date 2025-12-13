@@ -169,6 +169,70 @@ export class VscodeGitGateway implements IGitPort {
         });
     }
 
+    async getCurrentBranch(workspaceRoot: string): Promise<string> {
+        return new Promise((resolve, reject) => {
+            exec(
+                `cd "${workspaceRoot}" && git rev-parse --abbrev-ref HEAD`,
+                { maxBuffer: 1024 * 1024 },
+                (error, stdout) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    resolve(stdout.trim());
+                }
+            );
+        });
+    }
+
+    async createBranch(name: string, workspaceRoot: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            exec(
+                `cd "${workspaceRoot}" && git checkout -b "${name}"`,
+                { maxBuffer: 1024 * 1024 },
+                (error) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    resolve();
+                }
+            );
+        });
+    }
+
+    async createWorktree(path: string, branch: string, workspaceRoot: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            exec(
+                `cd "${workspaceRoot}" && git worktree add "${path}" -b "${branch}"`,
+                { maxBuffer: 1024 * 1024 },
+                (error) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    resolve();
+                }
+            );
+        });
+    }
+
+    async getWorktreeRoot(workspaceRoot: string): Promise<string | null> {
+        return new Promise((resolve) => {
+            exec(
+                `cd "${workspaceRoot}" && git rev-parse --show-toplevel`,
+                { maxBuffer: 1024 * 1024 },
+                (error, stdout) => {
+                    if (error) {
+                        resolve(null);
+                        return;
+                    }
+                    resolve(stdout.trim());
+                }
+            );
+        });
+    }
+
     private listFilesInDirectory(workspaceRoot: string, dirPath: string): Promise<string[]> {
         return new Promise((resolve) => {
             exec(

@@ -7,6 +7,7 @@ export interface CommentData {
     codeContext: string;
     isSubmitted: boolean;
     timestamp: number;
+    threadId?: string;
 }
 
 export class Comment {
@@ -18,6 +19,7 @@ export class Comment {
     readonly codeContext: string;
     private _isSubmitted: boolean;
     readonly timestamp: number;
+    readonly threadId?: string;
 
     constructor(data: CommentData) {
         this.id = data.id;
@@ -28,6 +30,7 @@ export class Comment {
         this.codeContext = data.codeContext;
         this._isSubmitted = data.isSubmitted;
         this.timestamp = data.timestamp;
+        this.threadId = data.threadId;
     }
 
     get isSubmitted(): boolean {
@@ -48,6 +51,7 @@ export class Comment {
             codeContext: this.codeContext,
             isSubmitted: this._isSubmitted,
             timestamp: this.timestamp,
+            threadId: this.threadId,
         });
     }
 
@@ -65,6 +69,7 @@ export class Comment {
             codeContext: this.codeContext,
             isSubmitted: this._isSubmitted,
             timestamp: this.timestamp,
+            threadId: this.threadId,
         };
     }
 
@@ -74,6 +79,7 @@ export class Comment {
         endLine?: number;
         text: string;
         codeContext: string;
+        threadId?: string;
     }): Comment {
         return new Comment({
             id: Date.now().toString(),
@@ -84,6 +90,7 @@ export class Comment {
             codeContext: params.codeContext,
             isSubmitted: false,
             timestamp: Date.now(),
+            threadId: params.threadId,
         });
     }
 }

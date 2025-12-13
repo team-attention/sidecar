@@ -14,6 +14,7 @@ export class AddCommentUseCase implements IAddCommentUseCase {
             endLine: input.endLine,
             text: input.text,
             codeContext: input.codeContext,
+            threadId: input.threadId,
         });
 
         await this.commentRepository.save(comment);

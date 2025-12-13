@@ -43,6 +43,9 @@ export class AIDetectionController {
     /** FileWatchController reference for worktree support */
     private fileWatchController: IFileWatchController | undefined;
 
+    /** Callback for session changes (used by ThreadListController) */
+    private onSessionChangeCallback?: () => void;
+
     private log(message: string): void {
         if (!this.debugChannel) return;
         const timestamp = new Date().toISOString().substring(11, 23);
@@ -79,6 +82,20 @@ export class AIDetectionController {
      */
     setFileWatchController(controller: IFileWatchController): void {
         this.fileWatchController = controller;
+    }
+
+    /**
+     * Set callback for session changes (used by ThreadListController).
+     */
+    setOnSessionChange(callback: () => void): void {
+        this.onSessionChangeCallback = callback;
+    }
+
+    /**
+     * Notify listeners of session changes.
+     */
+    private notifySessionChange(): void {
+        this.onSessionChangeCallback?.();
     }
 
     activate(context: vscode.ExtensionContext): void {
@@ -363,6 +380,9 @@ export class AIDetectionController {
         this.sessions.set(terminalId, context);
         this.log(`🟢 activateSidecar: session created, totalSessions=${this.sessions.size}`);
 
+        // Notify session change listeners
+        this.notifySessionChange();
+
         // Register worktree watcher if workspaceRoot differs from VSCode workspace
         if (workspaceRoot && this.fileWatchController) {
             await this.fileWatchController.registerSessionWorkspace(terminalId, workspaceRoot);
@@ -402,6 +422,9 @@ export class AIDetectionController {
 
         // 세션 먼저 제거 (에러 발생해도 세션은 삭제되도록)
         this.sessions.delete(terminalId);
+
+        // Notify session change listeners
+        this.notifySessionChange();
 
         try {
             // 렌더 콜백 먼저 해제 (dispose된 webview 접근 방지)
@@ -559,6 +582,30 @@ export class AIDetectionController {
      */
     getSessions(): Map<string, SessionContext> {
         return this.sessions;
+    }
+
+    /**
+     * Attach Sidecar to a terminal by its ID.
+     * Used when creating threads via the UI.
+     */
+    async attachToTerminalById(terminalId: string): Promise<void> {
+        const terminal = this.terminalGateway.getTerminal(terminalId);
+        if (!terminal) {
+            this.log(`⚠️ attachToTerminalById: terminal not found for ${terminalId}`);
+            return;
+        }
+
+        // Skip if already have session
+        if (this.sessions.has(terminalId)) {
+            this.log(`  Skip: session already exists for ${terminalId}`);
+            const panel = SidecarPanelAdapter.getPanel(terminalId);
+            if (panel) {
+                panel.show();
+            }
+            return;
+        }
+
+        await this.activateSidecar('claude', terminal);
     }
 
     /**

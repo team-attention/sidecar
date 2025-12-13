@@ -564,6 +564,43 @@ export class FileWatchController {
     }
 
     /**
+     * Check if a file is in a session's per-thread whitelist.
+     * Returns true if the file matches any of the session's threadState whitelist patterns.
+     */
+    private isInSessionWhitelist(session: SessionContext, relativePath: string): boolean {
+        const threadState = session.threadState;
+        if (!threadState) {
+            return false;
+        }
+
+        const patterns = threadState.whitelistPatterns;
+        if (patterns.length === 0) {
+            return false;
+        }
+
+        // Use ignore library to match patterns
+        const matcher = ignore().add(patterns);
+        return matcher.ignores(relativePath);
+    }
+
+    /**
+     * Check if a file is in the global or session-specific whitelist.
+     */
+    private isWhitelisted(relativePath: string, session?: SessionContext): boolean {
+        // Check global whitelist first
+        if (this.includePatterns.ignores(relativePath)) {
+            return true;
+        }
+
+        // Check session-specific whitelist
+        if (session && this.isInSessionWhitelist(session, relativePath)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Process a file change event (after debouncing).
      * Files reaching this point are already filtered by git extension or whitelist watchers.
      */
@@ -752,16 +789,17 @@ export class FileWatchController {
 
             // Find files that were committed (no longer in uncommitted list)
             // Also include whitelist files (gitignored) - they should be flushed on commit too
+            // Check both global and per-session whitelist
             const filesToRemove = currentState.sessionFiles.filter(f => {
                 const isUncommitted = uncommittedPaths.has(f.path);
-                const isWhitelisted = this.includePatterns.ignores(f.path);
+                const isInWhitelist = this.isWhitelisted(f.path, sessionContext);
                 // Remove if: (git-tracked AND committed) OR (whitelist file)
-                return !isUncommitted || isWhitelisted;
+                return !isUncommitted || isInWhitelist;
             });
 
             // Remove files from session
             for (const file of filesToRemove) {
-                const reason = this.includePatterns.ignores(file.path) ? 'whitelist' : 'committed';
+                const reason = this.isWhitelisted(file.path, sessionContext) ? 'whitelist' : 'committed';
                 this.log(`  Removing ${reason} file: ${file.path}`);
                 stateManager.removeSessionFile(file.path);
             }
@@ -1152,15 +1190,16 @@ export class FileWatchController {
         const uncommittedPaths = new Set(uncommittedFiles.map(f => f.path));
 
         // Find files that were committed
+        // Check both global and per-session whitelist
         const filesToRemove = currentState.sessionFiles.filter(f => {
             const isUncommitted = uncommittedPaths.has(f.path);
-            const isWhitelisted = this.includePatterns.ignores(f.path);
-            return !isUncommitted || isWhitelisted;
+            const isInWhitelist = this.isWhitelisted(f.path, session);
+            return !isUncommitted || isInWhitelist;
         });
 
         // Remove files from session
         for (const file of filesToRemove) {
-            const reason = this.includePatterns.ignores(file.path) ? 'whitelist' : 'committed';
+            const reason = this.isWhitelisted(file.path, session) ? 'whitelist' : 'committed';
             this.log(`[Worktree] Removing ${reason} file: ${file.path}`);
             stateManager.removeSessionFile(file.path);
         }

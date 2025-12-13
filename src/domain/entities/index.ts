@@ -4,3 +4,4 @@ export { FileSnapshot, FileSnapshotData } from './FileSnapshot';
 export { HNStory, HNStoryData } from './HNStory';
 export { Scope, ScopeData } from './Scope';
 export { ScopedChunk, ScopedDiffResult } from './ScopedDiff';
+export { ThreadState, ThreadStateData } from './ThreadState';

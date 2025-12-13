@@ -9,6 +9,7 @@ import {
     HNStoryInfo,
     ScopedDiffDisplayState,
     ScopedChunkDisplay,
+    AgentDisplayInfo,
     createInitialPanelState,
 } from '../ports/outbound/PanelState';
 import { IPanelStateManager } from './IPanelStateManager';
@@ -542,6 +543,38 @@ export class PanelStateManager implements IPanelStateManager {
             contentView: null,
         };
         this.render();
+    }
+
+    // ===== Agent metadata operations =====
+
+    setAgentInfo(info: AgentDisplayInfo | undefined): void {
+        this.state = {
+            ...this.state,
+            agentInfo: info,
+        };
+        this.render();
+    }
+
+    setAggregatedView(isAggregated: boolean): void {
+        this.state = {
+            ...this.state,
+            isAggregatedView: isAggregated,
+        };
+        this.render();
+    }
+
+    // ===== Thread context operations =====
+
+    setThreadId(threadId: string | undefined): void {
+        this.state = {
+            ...this.state,
+            threadId,
+        };
+        // Don't render - threadId is metadata, not visual state
+    }
+
+    getThreadId(): string | undefined {
+        return this.state.threadId;
     }
 
     // ===== Private =====

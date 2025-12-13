@@ -41,6 +41,14 @@ export class JsonCommentRepository implements ICommentRepository {
         return this.comments.filter(c => !c.isSubmitted);
     }
 
+    async findByThreadId(threadId: string): Promise<Comment[]> {
+        return this.comments.filter(c => c.threadId === threadId);
+    }
+
+    async findActiveByThreadId(threadId: string): Promise<Comment[]> {
+        return this.comments.filter(c => c.threadId === threadId && !c.isSubmitted);
+    }
+
     async markAsSubmitted(ids: string[]): Promise<void> {
         const idSet = new Set(ids);
         this.comments.forEach(c => {

@@ -2331,4 +2331,92 @@ button:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Agent Header Styles (Multi-Agent Mode) */
+.agent-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-header--aggregated {
+  color: var(--vscode-descriptionForeground);
+}
+
+.agent-status {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.agent-status--working {
+  color: var(--vscode-charts-green, #4ec9b0);
+}
+
+.agent-status--waiting {
+  color: var(--vscode-charts-yellow, #dcdcaa);
+}
+
+.agent-status--error {
+  color: var(--vscode-charts-red, #f14c4c);
+}
+
+.agent-status--idle {
+  color: var(--vscode-descriptionForeground);
+}
+
+.agent-name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.agent-icon {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* Agent Badge Styles (for aggregated file list) */
+.agent-badge {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.agent-badge--multi {
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+/* 6-color palette for agent badges */
+.agent-badge--color-0 {
+  background: rgba(66, 165, 245, 0.2);
+  color: #42a5f5;
+}
+
+.agent-badge--color-1 {
+  background: rgba(102, 187, 106, 0.2);
+  color: #66bb6a;
+}
+
+.agent-badge--color-2 {
+  background: rgba(255, 167, 38, 0.2);
+  color: #ffa726;
+}
+
+.agent-badge--color-3 {
+  background: rgba(171, 71, 188, 0.2);
+  color: #ab47bc;
+}
+
+.agent-badge--color-4 {
+  background: rgba(239, 83, 80, 0.2);
+  color: #ef5350;
+}
+
+.agent-badge--color-5 {
+  background: rgba(38, 198, 218, 0.2);
+  color: #26c6da;
+}
 `;

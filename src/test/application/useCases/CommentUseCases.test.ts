@@ -24,6 +24,14 @@ class MockCommentRepository implements ICommentRepository {
         return Array.from(this.comments.values()).filter(c => !c.isSubmitted);
     }
 
+    async findByThreadId(threadId: string): Promise<Comment[]> {
+        return Array.from(this.comments.values()).filter(c => c.threadId === threadId);
+    }
+
+    async findActiveByThreadId(threadId: string): Promise<Comment[]> {
+        return Array.from(this.comments.values()).filter(c => c.threadId === threadId && !c.isSubmitted);
+    }
+
     async markAsSubmitted(ids: string[]): Promise<void> {
         ids.forEach(id => {
             const comment = this.comments.get(id);

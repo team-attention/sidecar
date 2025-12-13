@@ -613,12 +613,16 @@ export class SidecarPanelAdapter {
     }): Promise<void> {
         if (!this.addCommentUseCase || !this.panelStateManager) return;
 
+        // Get threadId from panel state for per-thread comment association
+        const threadId = this.panelStateManager.getThreadId();
+
         const comment = await this.addCommentUseCase.execute({
             file: message.file,
             line: message.line,
             endLine: message.endLine,
             text: message.text,
             codeContext: message.context || '',
+            threadId,
         });
 
         // Update panel state with new comment
