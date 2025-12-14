@@ -13,7 +13,7 @@ export class JsonThreadStateRepository implements IThreadStateRepository {
             if (!fs.existsSync(vscodeDir)) {
                 fs.mkdirSync(vscodeDir);
             }
-            this.storagePath = path.join(vscodeDir, 'sidecar-threads.json');
+            this.storagePath = path.join(vscodeDir, 'code-squad-threads.json');
             this.loadThreads();
         }
     }
@@ -79,7 +79,7 @@ export class JsonThreadStateRepository implements IThreadStateRepository {
             const parsed: ThreadStateData[] = JSON.parse(data);
             this.threads = parsed.map(d => ThreadState.fromData(d));
         } catch (e) {
-            console.error('[Sidecar] Failed to load threads', e);
+            console.error('[Code Squad] Failed to load threads', e);
         }
     }
 
@@ -89,7 +89,7 @@ export class JsonThreadStateRepository implements IThreadStateRepository {
                 const data = this.threads.map(t => t.toData());
                 fs.writeFileSync(this.storagePath, JSON.stringify(data, null, 2));
             } catch (e) {
-                console.error('[Sidecar] Failed to save threads', e);
+                console.error('[Code Squad] Failed to save threads', e);
             }
         }
     }

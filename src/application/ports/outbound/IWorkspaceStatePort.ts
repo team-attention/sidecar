@@ -7,7 +7,7 @@ export interface IWorkspaceStatePort {
 }
 
 export const WORKSPACE_STATE_KEYS = {
-  AUTO_OPEN_PANEL: 'sidecar.autoOpenPanel',
+  AUTO_OPEN_PANEL: 'codeSquad.autoOpenPanel',
 } as const;
 
 export type AutoOpenPanelSetting = 'ask' | 'always' | 'never';

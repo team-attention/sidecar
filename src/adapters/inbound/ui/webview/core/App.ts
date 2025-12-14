@@ -71,7 +71,7 @@ declare const acquireVsCodeApi: () => VSCodeAPI;
 
 declare global {
   interface Window {
-    SidecarHighlighter?: {
+    CodeSquadHighlighter?: {
       highlightLines: (lines: string[], language: string) => Promise<string[]>;
       highlightCodeBlock: (code: string, language: string) => Promise<string>;
       getLanguageFromPath: (filePath: string) => string;
@@ -470,15 +470,15 @@ async function renderScopedDiff(
   }
 
   // Highlight lines
-  const language = window.SidecarHighlighter
-    ? window.SidecarHighlighter.getLanguageFromPath(scopedDiff.file)
+  const language = window.CodeSquadHighlighter
+    ? window.CodeSquadHighlighter.getLanguageFromPath(scopedDiff.file)
     : 'plaintext';
 
   const highlightMap = new Map<number, string>();
-  if (window.SidecarHighlighter && language !== 'plaintext') {
+  if (window.CodeSquadHighlighter && language !== 'plaintext') {
     try {
       const contents = allLines.map((l) => l.content);
-      const highlighted = await window.SidecarHighlighter.highlightLines(contents, language);
+      const highlighted = await window.CodeSquadHighlighter.highlightLines(contents, language);
       allLines.forEach((line, idx) => {
         highlightMap.set(line.lineNumber, highlighted[idx]);
       });
@@ -605,8 +605,8 @@ async function renderDiff(
     }));
 
   // Get language for syntax highlighting
-  const language = window.SidecarHighlighter
-    ? window.SidecarHighlighter.getLanguageFromPath(diff.file)
+  const language = window.CodeSquadHighlighter
+    ? window.CodeSquadHighlighter.getLanguageFromPath(diff.file)
     : 'plaintext';
 
   // Render diff table
@@ -1162,7 +1162,7 @@ export function initialize(): void {
     );
   }
 
-  console.log('[SidecarApp] Initialized');
+  console.log('[CodeSquadApp] Initialized');
 }
 
 // Export for external access

@@ -22,7 +22,7 @@ export interface DeletionInfo {
 
 declare global {
   interface Window {
-    SidecarHighlighter?: {
+    CodeSquadHighlighter?: {
       highlightCodeBlock: (code: string, lang: string) => Promise<string>;
       highlightLines: (lines: string[], language: string) => Promise<string[]>;
       getLanguageFromPath: (path: string) => string;
@@ -34,9 +34,9 @@ declare global {
  * Highlight code using Shiki
  */
 async function highlightCodeAsync(code: string, lang: string): Promise<string> {
-  if (window.SidecarHighlighter && lang) {
+  if (window.CodeSquadHighlighter && lang) {
     try {
-      return await window.SidecarHighlighter.highlightCodeBlock(code, lang);
+      return await window.CodeSquadHighlighter.highlightCodeBlock(code, lang);
     } catch (e) {
       console.warn('Code highlighting failed:', e);
     }

@@ -39,7 +39,7 @@ import { InMemoryFileThreadMappingRepository } from './infrastructure/repositori
 let extensionContext: vscode.ExtensionContext;
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('[Sidecar] Sidecar is now active!');
+    console.log('[Code Squad] Code Squad is now active!');
     extensionContext = context;
 
     // ===== Infrastructure Layer =====
@@ -196,14 +196,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register cycleThreads command
     context.subscriptions.push(
-        vscode.commands.registerCommand('sidecar.cycleThreads', () => {
+        vscode.commands.registerCommand('codeSquad.cycleThreads', () => {
             threadListController.cycleToNextThread();
         })
     );
 
     // Register createAgent command
     context.subscriptions.push(
-        vscode.commands.registerCommand('sidecar.createAgent', () => {
+        vscode.commands.registerCommand('codeSquad.createAgent', () => {
             threadListController.createThread();
         })
     );
@@ -220,17 +220,17 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Reset Auto-Open Setting
     context.subscriptions.push(
-        vscode.commands.registerCommand('sidecar.resetAutoOpen', async () => {
+        vscode.commands.registerCommand('codeSquad.resetAutoOpen', async () => {
             await workspaceStateGateway.set(WORKSPACE_STATE_KEYS.AUTO_OPEN_PANEL, 'ask');
             vscode.window.showInformationMessage(
-                'Sidecar will ask before opening panel next time.'
+                'Code Squad will ask before opening panel next time.'
             );
         })
     );
 
-    // Attach to Terminal - manually attach Sidecar to existing terminal
+    // Attach to Terminal - manually attach Code Squad to existing terminal
     context.subscriptions.push(
-        vscode.commands.registerCommand('sidecar.attachToTerminal', async () => {
+        vscode.commands.registerCommand('codeSquad.attachToTerminal', async () => {
             await aiDetectionController.attachToTerminal();
         })
     );

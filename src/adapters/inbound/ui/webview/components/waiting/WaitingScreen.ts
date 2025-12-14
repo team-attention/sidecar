@@ -29,7 +29,7 @@ export function renderWaitingScreen(
 ├────────────┬──────────────────┤
 │            │                  │
 │  Terminal  │                  │
-│ (AI Agent) │     Sidecar      │
+│ (AI Agent) │   Code Squad     │
 │            │                  │
 │            │                  │
 └────────────┴──────────────────┘

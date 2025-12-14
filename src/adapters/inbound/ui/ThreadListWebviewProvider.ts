@@ -20,7 +20,7 @@ export interface CreateThreadOptions {
 }
 
 export class ThreadListWebviewProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'sidecarThreadList';
+    public static readonly viewType = 'codeSquadThreadList';
 
     private view?: vscode.WebviewView;
     private selectedId: string = '';

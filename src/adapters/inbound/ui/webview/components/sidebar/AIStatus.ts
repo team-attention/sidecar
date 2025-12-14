@@ -98,6 +98,6 @@ export function renderAgentHeader(
       </div>
     `;
   } else {
-    headerTitle.textContent = 'Sidecar';
+    headerTitle.textContent = 'Code Squad';
   }
 }

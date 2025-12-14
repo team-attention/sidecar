@@ -1,15 +1,15 @@
 {
-  "name": "sidecar",
-  "displayName": "Sidecar",
+  "name": "code-squad",
+  "displayName": "Code Squad",
   "description": "Stay in flow while building with AI",
-  "version": "0.0.46",
+  "version": "0.0.1",
   "publisher": "JakePark",
   "repository": {
     "type": "git",
     "url": "https://github.com/team-attention/sidecar.git"
   },
   "license": "MIT",
-  "icon": "assets/sidecar-icon.png",
+  "icon": "assets/code-squad-icon.png",
   "engines": {
     "vscode": "^1.93.0"
   },
@@ -33,68 +33,68 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "sidecar",
-          "title": "Sidecar",
+          "id": "codeSquad",
+          "title": "Code Squad",
           "icon": "$(hubot)"
         }
       ]
     },
     "views": {
-      "sidecar": [
+      "codeSquad": [
         {
           "type": "webview",
-          "id": "sidecarThreadList",
+          "id": "codeSquadThreadList",
           "name": "Threads",
           "icon": "$(list-tree)",
-          "contextualTitle": "Sidecar Threads"
+          "contextualTitle": "Code Squad Threads"
         }
       ]
     },
     "commands": [
       {
-        "command": "sidecar.resetAutoOpen",
-        "title": "Sidecar: Reset Auto-Open Setting"
+        "command": "codeSquad.resetAutoOpen",
+        "title": "Code Squad: Reset Auto-Open Setting"
       },
       {
-        "command": "sidecar.attachToTerminal",
-        "title": "Sidecar: Attach to Terminal"
+        "command": "codeSquad.attachToTerminal",
+        "title": "Code Squad: Attach to Terminal"
       },
       {
-        "command": "sidecar.selectThread",
-        "title": "Sidecar: Select Thread"
+        "command": "codeSquad.selectThread",
+        "title": "Code Squad: Select Thread"
       },
       {
-        "command": "sidecar.cycleThreads",
-        "title": "Sidecar: Cycle Through Threads"
+        "command": "codeSquad.cycleThreads",
+        "title": "Code Squad: Cycle Through Threads"
       },
       {
-        "command": "sidecar.createAgent",
-        "title": "Sidecar: Create New Agent",
+        "command": "codeSquad.createAgent",
+        "title": "Code Squad: Create New Agent",
         "icon": "$(add)"
       }
     ],
     "keybindings": [
       {
-        "command": "sidecar.cycleThreads",
+        "command": "codeSquad.cycleThreads",
         "key": "ctrl+shift+a",
         "mac": "cmd+shift+a",
-        "when": "sidecar.hasMultipleThreads"
+        "when": "codeSquad.hasMultipleThreads"
       }
     ],
     "configuration": {
-      "title": "Sidecar",
+      "title": "Code Squad",
       "properties": {
-        "sidecar.autoDetect": {
+        "codeSquad.autoDetect": {
           "type": "boolean",
           "default": true,
           "description": "Automatically detect Claude Code, Codex, and Gemini CLI execution"
         },
-        "sidecar.autoShowPanel": {
+        "codeSquad.autoShowPanel": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically show Sidecar panel when AI is detected"
+          "description": "Automatically show Code Squad panel when AI is detected"
         },
-        "sidecar.includeFiles": {
+        "codeSquad.includeFiles": {
           "type": "array",
           "default": [],
           "items": {
@@ -102,7 +102,7 @@
           },
           "description": "Glob patterns for files to track even if they are gitignored (e.g., ['dist/**', '.env.local'])"
         },
-        "sidecar.fileWatchDebounceMs": {
+        "codeSquad.fileWatchDebounceMs": {
           "type": "number",
           "default": 300,
           "minimum": 0,

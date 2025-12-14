@@ -11,7 +11,7 @@ import { initialize, stateManager } from './core';
 
 declare global {
   interface Window {
-    SidecarApp: {
+    CodeSquadApp: {
       initialize: () => void;
       stateManager: typeof stateManager;
     };
@@ -20,7 +20,7 @@ declare global {
 
 // ===== Expose on Window =====
 
-window.SidecarApp = {
+window.CodeSquadApp = {
   initialize,
   stateManager,
 };

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { SessionContext } from '../../../application/ports/outbound/SessionContext';
 import { ThreadListWebviewProvider, CreateThreadOptions } from '../ui/ThreadListWebviewProvider';
-import { SidecarPanelAdapter } from '../ui/SidecarPanelAdapter';
+import { CodeSquadPanelAdapter } from '../ui/CodeSquadPanelAdapter';
 import { ITerminalPort } from '../../../application/ports/outbound/ITerminalPort';
 import { ICreateThreadUseCase, IsolationMode } from '../../../application/ports/inbound/ICreateThreadUseCase';
 import { FileWatchController } from './FileWatchController';
@@ -19,7 +19,7 @@ export class ThreadListController {
         private readonly getSessions: () => Map<string, SessionContext>,
         private readonly terminalGateway: ITerminalPort,
         private readonly createThreadUseCase?: ICreateThreadUseCase,
-        private readonly attachSidecar?: (terminalId: string) => Promise<void>,
+        private readonly attachCodeSquad?: (terminalId: string) => Promise<void>,
         private readonly fileWatchController?: FileWatchController,
         private readonly commentRepository?: ICommentRepository,
         private readonly gitPort?: IGitPort
@@ -44,7 +44,7 @@ export class ThreadListController {
 
         // Register select command
         this.disposables.push(
-            vscode.commands.registerCommand('sidecar.selectThread', async (id: string) => {
+            vscode.commands.registerCommand('codeSquad.selectThread', async (id: string) => {
                 await this.selectThread(id);
             })
         );
@@ -121,7 +121,7 @@ export class ThreadListController {
         this.terminalGateway.showTerminal(id);
 
         // Switch single panel to this session's context
-        const panel = SidecarPanelAdapter.currentPanel;
+        const panel = CodeSquadPanelAdapter.currentPanel;
         if (panel) {
             panel.switchToSession(
                 id,
@@ -146,12 +146,12 @@ export class ThreadListController {
      */
     private async refreshFilesForSession(context: SessionContext, workspaceRoot: string): Promise<void> {
         if (!this.gitPort || !workspaceRoot) {
-            console.log(`[Sidecar] Cannot refresh files: gitPort=${!!this.gitPort}, workspaceRoot=${workspaceRoot}`);
+            console.log(`[Code Squad] Cannot refresh files: gitPort=${!!this.gitPort}, workspaceRoot=${workspaceRoot}`);
             return;
         }
 
         try {
-            console.log(`[Sidecar] Refreshing files for ${context.terminalId} from ${workspaceRoot}`);
+            console.log(`[Code Squad] Refreshing files for ${context.terminalId} from ${workspaceRoot}`);
 
             // Get uncommitted files from git for this session's workspaceRoot
             const uncommittedFiles = await this.gitPort.getUncommittedFilesWithStatus(workspaceRoot);
@@ -166,9 +166,9 @@ export class ThreadListController {
             // Update baseline with current uncommitted files
             context.stateManager.setBaseline(fileInfos);
 
-            console.log(`[Sidecar] Refreshed files for ${context.terminalId}: ${fileInfos.length} files from ${workspaceRoot}`);
+            console.log(`[Code Squad] Refreshed files for ${context.terminalId}: ${fileInfos.length} files from ${workspaceRoot}`);
         } catch (error) {
-            console.error(`[Sidecar] Failed to refresh files for session ${context.terminalId}:`, error);
+            console.error(`[Code Squad] Failed to refresh files for session ${context.terminalId}:`, error);
         }
     }
 
@@ -240,9 +240,9 @@ export class ThreadListController {
                 workspaceRoot,
             });
 
-            // Auto-attach Sidecar to the new terminal
-            if (this.attachSidecar) {
-                await this.attachSidecar(result.threadState.terminalId);
+            // Auto-attach Code Squad to the new terminal
+            if (this.attachCodeSquad) {
+                await this.attachCodeSquad(result.threadState.terminalId);
             }
 
             // Refresh and select new thread
@@ -308,9 +308,9 @@ export class ThreadListController {
                 workspaceRoot,
             });
 
-            // Auto-attach Sidecar to the new terminal
-            if (this.attachSidecar) {
-                await this.attachSidecar(result.threadState.terminalId);
+            // Auto-attach Code Squad to the new terminal
+            if (this.attachCodeSquad) {
+                await this.attachCodeSquad(result.threadState.terminalId);
             }
 
             // Refresh and select new thread
@@ -338,7 +338,7 @@ export class ThreadListController {
         const sessions = this.getSessions();
         vscode.commands.executeCommand(
             'setContext',
-            'sidecar.hasMultipleThreads',
+            'codeSquad.hasMultipleThreads',
             sessions.size > 1
         );
     }

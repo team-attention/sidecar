@@ -30,7 +30,7 @@ export class ClaudeCodeConfigController {
         ];
 
         const pick = await vscode.window.showQuickPick(items, {
-            title: 'Sidecar works best with Claude Code in terminal mode',
+            title: 'Code Squad works best with Claude Code in terminal mode',
             placeHolder: 'Press Enter to enable',
         });
 

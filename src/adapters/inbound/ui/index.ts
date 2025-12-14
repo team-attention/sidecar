@@ -1,1 +1,1 @@
-export { SidecarPanelAdapter } from './SidecarPanelAdapter';
+export { CodeSquadPanelAdapter } from './CodeSquadPanelAdapter';

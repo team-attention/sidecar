@@ -158,7 +158,7 @@ export class FileWatchController {
         if (!this.debugChannel) return;
         try {
             const timestamp = new Date().toISOString().substring(11, 23);
-            this.debugChannel.appendLine(`[Sidecar] [${timestamp}] ${message}`);
+            this.debugChannel.appendLine(`[Code Squad] [${timestamp}] ${message}`);
         } catch {
             // Channel may be disposed during extension deactivation
         }
@@ -278,7 +278,7 @@ export class FileWatchController {
         }
 
         // Fallback: Save to global config (existing behavior)
-        const config = vscode.workspace.getConfiguration('sidecar');
+        const config = vscode.workspace.getConfiguration('codeSquad');
         const current = config.get<string[]>('includeFiles', []);
         if (!current.includes(pattern)) {
             await config.update('includeFiles', [...current, pattern], vscode.ConfigurationTarget.Workspace);
@@ -293,7 +293,7 @@ export class FileWatchController {
         // Reset and reload global patterns
         this.includePatterns = ignore();
 
-        const config = vscode.workspace.getConfiguration('sidecar');
+        const config = vscode.workspace.getConfiguration('codeSquad');
         const globalPatterns = config.get<string[]>('includeFiles', []);
 
         if (globalPatterns.length > 0) {
@@ -343,7 +343,7 @@ export class FileWatchController {
         // 항상 제외할 패턴
         this.gitignore.add([
             '.git',
-            'sidecar-comments.json'
+            'code-squad-comments.json'
         ]);
     }
 
@@ -353,7 +353,7 @@ export class FileWatchController {
     }
 
     private loadDebounceConfig(): void {
-        const config = vscode.workspace.getConfiguration('sidecar');
+        const config = vscode.workspace.getConfiguration('codeSquad');
         const configValue = config.get<number>('fileWatchDebounceMs', 300);
         // Clamp to valid range
         this.debounceMs = Math.max(0, Math.min(2000, configValue));
@@ -509,7 +509,7 @@ export class FileWatchController {
         // Clear existing watchers
         this.disposeWhitelistWatchers();
 
-        const config = vscode.workspace.getConfiguration('sidecar');
+        const config = vscode.workspace.getConfiguration('codeSquad');
         const includeFiles = config.get<string[]>('includeFiles', []);
 
         if (includeFiles.length === 0) {
@@ -752,7 +752,7 @@ export class FileWatchController {
         }
 
         // Skip internal/excluded files
-        if (relativePath.includes('sidecar-comments.json') ||
+        if (relativePath.includes('code-squad-comments.json') ||
             relativePath.startsWith('.git/') ||
             relativePath.startsWith('.git\\')) {
             this.log(`  Skip: excluded file`);
@@ -823,7 +823,7 @@ export class FileWatchController {
 
     activate(context: vscode.ExtensionContext): void {
         this.extensionContext = context;
-        this.debugChannel = vscode.window.createOutputChannel('Sidecar FileWatch');
+        this.debugChannel = vscode.window.createOutputChannel('Code Squad FileWatch');
         context.subscriptions.push(this.debugChannel);
 
         this.log('Activating file watch with hybrid approach (Git Extension + Whitelist)');
@@ -844,12 +844,12 @@ export class FileWatchController {
         // Watch for configuration changes
         context.subscriptions.push(
             vscode.workspace.onDidChangeConfiguration(e => {
-                if (e.affectsConfiguration('sidecar.includeFiles')) {
+                if (e.affectsConfiguration('codeSquad.includeFiles')) {
                     this.log('includeFiles configuration changed');
                     this.loadIncludePatterns();
                     this.setupWhitelistWatchers(context);
                 }
-                if (e.affectsConfiguration('sidecar.fileWatchDebounceMs')) {
+                if (e.affectsConfiguration('codeSquad.fileWatchDebounceMs')) {
                     this.log('fileWatchDebounceMs configuration changed');
                     this.loadDebounceConfig();
                 }

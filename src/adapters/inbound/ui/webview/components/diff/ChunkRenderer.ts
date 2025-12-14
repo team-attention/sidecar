@@ -41,7 +41,7 @@ export interface InlineComment {
 
 declare global {
   interface Window {
-    SidecarHighlighter?: {
+    CodeSquadHighlighter?: {
       highlightLines: (lines: string[], language: string) => Promise<string[]>;
       getLanguageFromPath: (path: string) => string;
     };
@@ -159,9 +159,9 @@ export async function renderChunksToHtml(
 
   // Highlight all lines at once (async)
   let highlightedContents = allLineContents.map(escapeHtml);
-  if (window.SidecarHighlighter && language !== 'plaintext') {
+  if (window.CodeSquadHighlighter && language !== 'plaintext') {
     try {
-      highlightedContents = await window.SidecarHighlighter.highlightLines(
+      highlightedContents = await window.CodeSquadHighlighter.highlightLines(
         allLineContents,
         language
       );

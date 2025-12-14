@@ -25,16 +25,16 @@ import { getWebviewContent } from './webview';
  * - Each session maintains its own StateManager
  * - Panel connects to the focused session's StateManager
  */
-export class SidecarPanelAdapter {
+export class CodeSquadPanelAdapter {
     /** Single panel instance (singleton) */
-    private static instance: SidecarPanelAdapter | undefined;
+    private static instance: CodeSquadPanelAdapter | undefined;
 
     /** Current session's terminal ID */
     private currentTerminalId: string | undefined;
 
     /** Get the singleton panel instance */
-    public static get currentPanel(): SidecarPanelAdapter | undefined {
-        return SidecarPanelAdapter.instance;
+    public static get currentPanel(): CodeSquadPanelAdapter | undefined {
+        return CodeSquadPanelAdapter.instance;
     }
 
     private readonly panel: vscode.WebviewPanel;
@@ -58,14 +58,14 @@ export class SidecarPanelAdapter {
      * Get or create the singleton panel.
      * If panel already exists, just returns it.
      */
-    public static getOrCreate(context: vscode.ExtensionContext): SidecarPanelAdapter {
-        if (SidecarPanelAdapter.instance) {
-            return SidecarPanelAdapter.instance;
+    public static getOrCreate(context: vscode.ExtensionContext): CodeSquadPanelAdapter {
+        if (CodeSquadPanelAdapter.instance) {
+            return CodeSquadPanelAdapter.instance;
         }
 
         const panel = vscode.window.createWebviewPanel(
-            'sidecar',
-            'Sidecar',
+            'codeSquad',
+            'Code Squad',
             vscode.ViewColumn.Two,
             {
                 enableScripts: true,
@@ -77,7 +77,7 @@ export class SidecarPanelAdapter {
             }
         );
 
-        // Set editor layout: Terminal 30%, Sidecar 70%
+        // Set editor layout: Terminal 30%, Code Squad 70%
         vscode.commands.executeCommand('vscode.setEditorLayout', {
             orientation: 0, // horizontal
             groups: [
@@ -86,8 +86,8 @@ export class SidecarPanelAdapter {
             ]
         });
 
-        SidecarPanelAdapter.instance = new SidecarPanelAdapter(panel, context);
-        return SidecarPanelAdapter.instance;
+        CodeSquadPanelAdapter.instance = new CodeSquadPanelAdapter(panel, context);
+        return CodeSquadPanelAdapter.instance;
     }
 
     /**
@@ -98,8 +98,8 @@ export class SidecarPanelAdapter {
         context: vscode.ExtensionContext,
         terminalId: string,
         workspaceRoot?: string
-    ): SidecarPanelAdapter {
-        const adapter = SidecarPanelAdapter.getOrCreate(context);
+    ): CodeSquadPanelAdapter {
+        const adapter = CodeSquadPanelAdapter.getOrCreate(context);
         adapter.currentTerminalId = terminalId;
         adapter.workspaceRoot = workspaceRoot;
         return adapter;
@@ -109,16 +109,16 @@ export class SidecarPanelAdapter {
      * Legacy method for backward compatibility.
      * @deprecated Use getOrCreate() instead
      */
-    public static create(context: vscode.ExtensionContext): SidecarPanelAdapter {
-        return SidecarPanelAdapter.getOrCreate(context);
+    public static create(context: vscode.ExtensionContext): CodeSquadPanelAdapter {
+        return CodeSquadPanelAdapter.getOrCreate(context);
     }
 
     /**
      * Get panel if current session matches.
      * For backward compatibility - always returns the singleton.
      */
-    public static getPanel(_terminalId: string): SidecarPanelAdapter | undefined {
-        return SidecarPanelAdapter.instance;
+    public static getPanel(_terminalId: string): CodeSquadPanelAdapter | undefined {
+        return CodeSquadPanelAdapter.instance;
     }
 
     private constructor(
@@ -334,7 +334,7 @@ export class SidecarPanelAdapter {
             this.prefetchScopes(file, diffResult),
             this.generateScopedDiffUseCase
                 ? this.generateScopedDiffUseCase.execute(file).catch(error => {
-                    console.warn('[Sidecar] Scoped diff failed:', error);
+                    console.warn('[Code Squad] Scoped diff failed:', error);
                     return null;
                 })
                 : Promise.resolve(null)
@@ -639,7 +639,7 @@ export class SidecarPanelAdapter {
             const document = await vscode.workspace.openTextDocument(uri);
             await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
         } catch (error) {
-            console.error('[Sidecar] Failed to open file:', error);
+            console.error('[Code Squad] Failed to open file:', error);
         }
     }
 
@@ -797,7 +797,7 @@ export class SidecarPanelAdapter {
         fetchHNStoriesUseCase?: IFetchHNStoriesUseCase,
         generateScopedDiffUseCase?: IGenerateScopedDiffUseCase
     ): void {
-        console.log(`[Sidecar] Switching panel to session: ${terminalId}`);
+        console.log(`[Code Squad] Switching panel to session: ${terminalId}`);
 
         this.currentTerminalId = terminalId;
         this.workspaceRoot = workspaceRoot;
@@ -814,7 +814,7 @@ export class SidecarPanelAdapter {
         this.generateScopedDiffUseCase = generateScopedDiffUseCase;
 
         // Update panel title
-        this.panel.title = `Sidecar`;
+        this.panel.title = `Code Squad`;
 
         // Re-render with new session's state
         const state = panelStateManager.getState();
@@ -832,10 +832,10 @@ export class SidecarPanelAdapter {
     }
 
     public dispose(): void {
-        console.log(`[Sidecar] Panel dispose START`);
+        console.log(`[Code Squad] Panel dispose START`);
 
         // Clear singleton reference
-        SidecarPanelAdapter.instance = undefined;
+        CodeSquadPanelAdapter.instance = undefined;
 
         // Notify webview to cleanup before destroying
         try {
@@ -846,11 +846,11 @@ export class SidecarPanelAdapter {
 
         // Fire callback
         try {
-            console.log(`[Sidecar] Calling onDisposeCallback`);
+            console.log(`[Code Squad] Calling onDisposeCallback`);
             this.onDisposeCallback?.();
-            console.log(`[Sidecar] onDisposeCallback completed`);
+            console.log(`[Code Squad] onDisposeCallback completed`);
         } catch (e) {
-            console.error(`[Sidecar] onDisposeCallback error:`, e);
+            console.error(`[Code Squad] onDisposeCallback error:`, e);
         }
 
         // Dispose all disposables safely

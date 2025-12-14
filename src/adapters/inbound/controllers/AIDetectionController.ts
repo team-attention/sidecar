@@ -28,7 +28,7 @@ import {
 import { ScopeMappingService } from '../../../domain/services/ScopeMappingService';
 import { InMemorySnapshotRepository } from '../../../infrastructure/repositories/InMemorySnapshotRepository';
 import { VscodeTerminalGateway } from '../../outbound/gateways/VscodeTerminalGateway';
-import { SidecarPanelAdapter } from '../ui/SidecarPanelAdapter';
+import { CodeSquadPanelAdapter } from '../ui/CodeSquadPanelAdapter';
 
 // Forward declaration for FileWatchController interface
 interface IFileWatchController {
@@ -58,7 +58,7 @@ export class AIDetectionController {
         const timestamp = new Date().toISOString().substring(11, 23);
         const memUsage = process.memoryUsage();
         const heapMB = (memUsage.heapUsed / 1024 / 1024).toFixed(1);
-        this.debugChannel.appendLine(`[Sidecar:AI] [${timestamp}] [heap=${heapMB}MB] ${message}`);
+        this.debugChannel.appendLine(`[Code Squad:AI] [${timestamp}] [heap=${heapMB}MB] ${message}`);
     }
 
     private logError(context: string, error: unknown): void {
@@ -120,7 +120,7 @@ export class AIDetectionController {
     }
 
     activate(context: vscode.ExtensionContext): void {
-        this.debugChannel = vscode.window.createOutputChannel('Sidecar AI Detection');
+        this.debugChannel = vscode.window.createOutputChannel('Code Squad AI Detection');
         context.subscriptions.push(this.debugChannel);
 
         this.log('🚀 AIDetectionController activated');
@@ -184,13 +184,13 @@ export class AIDetectionController {
 
             if (this.isClaudeCommand(commandLine)) {
                 this.log('🤖 Claude Code detected!');
-                await this.promptAndActivateSidecar('claude', terminal);
+                await this.promptAndActivateCodeSquad('claude', terminal);
             } else if (this.isCodexCommand(commandLine)) {
                 this.log('🤖 Codex detected!');
-                await this.promptAndActivateSidecar('codex', terminal);
+                await this.promptAndActivateCodeSquad('codex', terminal);
             } else if (this.isGeminiCommand(commandLine)) {
                 this.log('🤖 Gemini CLI detected!');
-                await this.promptAndActivateSidecar('gemini', terminal);
+                await this.promptAndActivateCodeSquad('gemini', terminal);
             }
         } catch (error) {
             this.logError('handleCommandStart', error);
@@ -225,10 +225,10 @@ export class AIDetectionController {
     }
 
     /**
-     * Prompt user before opening Sidecar panel.
+     * Prompt user before opening Code Squad panel.
      * Respects saved preference (always/never/ask).
      */
-    private async promptAndActivateSidecar(type: AIType, terminal: vscode.Terminal): Promise<void> {
+    private async promptAndActivateCodeSquad(type: AIType, terminal: vscode.Terminal): Promise<void> {
         const displayName = AISession.getDisplayName(type);
 
         // Check saved preference
@@ -243,7 +243,7 @@ export class AIDetectionController {
 
         if (setting === 'always') {
             this.log(`  Auto-open: user preference is 'always'`);
-            await this.activateSidecar(type, terminal);
+            await this.activateCodeSquad(type, terminal);
             return;
         }
 
@@ -256,7 +256,7 @@ export class AIDetectionController {
         ];
 
         const pick = await vscode.window.showQuickPick(items, {
-            title: `$(hubot) ${displayName} detected! Open Sidecar?`,
+            title: `$(hubot) ${displayName} detected! Open Code Squad?`,
             placeHolder: 'Choose an option',
             ignoreFocusOut: true,
         });
@@ -267,10 +267,10 @@ export class AIDetectionController {
         }
 
         if (pick.label.includes('Yes')) {
-            await this.activateSidecar(type, terminal);
+            await this.activateCodeSquad(type, terminal);
         } else if (pick.label.includes('Always')) {
             await this.workspaceStatePort?.set(WORKSPACE_STATE_KEYS.AUTO_OPEN_PANEL, 'always');
-            await this.activateSidecar(type, terminal);
+            await this.activateCodeSquad(type, terminal);
         } else if (pick.label.includes('Never')) {
             await this.workspaceStatePort?.set(WORKSPACE_STATE_KEYS.AUTO_OPEN_PANEL, 'never');
             this.log(`  User chose 'Never' - preference saved`);
@@ -279,17 +279,17 @@ export class AIDetectionController {
         }
     }
 
-    private async activateSidecar(type: AIType, terminal: vscode.Terminal): Promise<void> {
+    private async activateCodeSquad(type: AIType, terminal: vscode.Terminal): Promise<void> {
         const startTime = Date.now();
-        this.log(`🟢 activateSidecar START: type=${type}, terminal="${terminal.name}"`);
+        this.log(`🟢 activateCodeSquad START: type=${type}, terminal="${terminal.name}"`);
 
         // 터미널 ID 등록 (처음 보는 터미널이면 새 ID 할당)
         const terminalId = this.registerTerminalId(terminal);
-        this.log(`🟢 activateSidecar: registered terminalId=${terminalId}`);
+        this.log(`🟢 activateCodeSquad: registered terminalId=${terminalId}`);
 
         // ThreadState 조회 (worktree 경로 확인용)
         const threadState = await this.threadStateRepository?.findByTerminalId(terminalId);
-        this.log(`🟢 activateSidecar: threadState=${threadState ? `found (worktreePath=${threadState.worktreePath})` : 'none'}`);
+        this.log(`🟢 activateCodeSquad: threadState=${threadState ? `found (worktreePath=${threadState.worktreePath})` : 'none'}`);
 
         // 터미널의 현재 작업 디렉토리 감지 (worktree 지원)
         // Priority: threadState.worktreePath > terminal.shellIntegration.cwd > workspace folder
@@ -297,7 +297,7 @@ export class AIDetectionController {
         const fallbackRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         const workspaceRoot = threadState?.worktreePath || terminalCwd || fallbackRoot;
 
-        this.log(`🟢 activateSidecar: worktreePath=${threadState?.worktreePath}, terminalCwd=${terminalCwd}, fallbackRoot=${fallbackRoot}, using=${workspaceRoot}`);
+        this.log(`🟢 activateCodeSquad: worktreePath=${threadState?.worktreePath}, terminalCwd=${terminalCwd}, fallbackRoot=${fallbackRoot}, using=${workspaceRoot}`);
 
         // 이미 이 터미널에 세션이 있으면 무시
         if (this.sessions.has(terminalId)) {
@@ -347,11 +347,11 @@ export class AIDetectionController {
 
         // 스냅샷 캡처
         try {
-            const config = vscode.workspace.getConfiguration('sidecar');
+            const config = vscode.workspace.getConfiguration('codeSquad');
             const includePatterns = config.get<string[]>('includeFiles', []);
             await captureSnapshotsUseCase.execute(includePatterns);
         } catch (error) {
-            console.error('[Sidecar] Failed to capture snapshots:', error);
+            console.error('[Code Squad] Failed to capture snapshots:', error);
         }
 
         // Baseline 캡처
@@ -362,7 +362,7 @@ export class AIDetectionController {
         await this.moveTerminalToSide(terminalId);
 
         // ===== 싱글 패널 생성 또는 재사용 =====
-        const panel = SidecarPanelAdapter.getOrCreate(this.getExtensionContext());
+        const panel = CodeSquadPanelAdapter.getOrCreate(this.getExtensionContext());
         const isFirstSession = this.sessions.size === 0;
 
         // 세션 전환을 위한 콜백 (아직 context 생성 전이므로 클로저 사용)
@@ -442,7 +442,7 @@ export class AIDetectionController {
         };
 
         this.sessions.set(terminalId, context);
-        this.log(`🟢 activateSidecar: session created, totalSessions=${this.sessions.size}`);
+        this.log(`🟢 activateCodeSquad: session created, totalSessions=${this.sessions.size}`);
 
         // Notify session change listeners
         this.notifySessionChange();
@@ -494,10 +494,10 @@ export class AIDetectionController {
 
         // 패널 자동 표시
         panel.show();
-        this.log(`🟢 activateSidecar: panel.show() called`);
+        this.log(`🟢 activateCodeSquad: panel.show() called`);
 
         const elapsed = Date.now() - startTime;
-        this.log(`🟢 activateSidecar END: terminalId=${terminalId}, elapsed=${elapsed}ms, totalSessions=${this.sessions.size}`);
+        this.log(`🟢 activateCodeSquad END: terminalId=${terminalId}, elapsed=${elapsed}ms, totalSessions=${this.sessions.size}`);
     }
 
     /**
@@ -584,14 +584,14 @@ export class AIDetectionController {
 
     private async moveTerminalToSide(terminalId: string): Promise<void> {
         // 이미 이 터미널에 패널이 있으면 스킵
-        if (SidecarPanelAdapter.getPanel(terminalId)) {
+        if (CodeSquadPanelAdapter.getPanel(terminalId)) {
             return;
         }
 
         try {
             await vscode.commands.executeCommand('workbench.action.terminal.moveIntoEditor');
         } catch {
-            console.log('[Sidecar] Terminal move command not available');
+            console.log('[Code Squad] Terminal move command not available');
         }
     }
 
@@ -610,7 +610,7 @@ export class AIDetectionController {
 
             stateManager.setBaseline(baselineFiles);
         } catch (error) {
-            console.error('[Sidecar] Failed to capture baseline:', error);
+            console.error('[Code Squad] Failed to capture baseline:', error);
         }
     }
 
@@ -624,7 +624,7 @@ export class AIDetectionController {
 
         // AI 명령 종료 시에만 세션 플러시
         if (this.isAICommand(commandLine)) {
-            console.log(`[Sidecar] AI command ended: ${context.session.type} (${terminalId})`);
+            console.log(`[Code Squad] AI command ended: ${context.session.type} (${terminalId})`);
             this.flushSession(terminalId);
         }
     }
@@ -634,7 +634,7 @@ export class AIDetectionController {
         const context = this.sessions.get(terminalId);
 
         if (context) {
-            console.log(`[Sidecar] Terminal closed: ${context.session.type} (${terminalId})`);
+            console.log(`[Code Squad] Terminal closed: ${context.session.type} (${terminalId})`);
             this.flushSession(terminalId);
         }
         // 세션이 없으면 무시 (싱글 패널은 세션과 독립적으로 유지)
@@ -670,7 +670,7 @@ export class AIDetectionController {
             }
 
             // Switch panel to this session's context
-            const panel = SidecarPanelAdapter.currentPanel;
+            const panel = CodeSquadPanelAdapter.currentPanel;
             if (panel) {
                 panel.switchToSession(
                     terminalId,
@@ -739,7 +739,7 @@ export class AIDetectionController {
     }
 
     /**
-     * Attach Sidecar to a terminal by its ID.
+     * Attach Code Squad to a terminal by its ID.
      * Used when creating threads via the UI.
      */
     async attachToTerminalById(terminalId: string): Promise<void> {
@@ -752,7 +752,7 @@ export class AIDetectionController {
         // Skip if already have session
         if (this.sessions.has(terminalId)) {
             this.log(`  Skip: session already exists for ${terminalId}`);
-            const panel = SidecarPanelAdapter.getPanel(terminalId);
+            const panel = CodeSquadPanelAdapter.getPanel(terminalId);
             if (panel) {
                 panel.show();
             }
@@ -765,12 +765,12 @@ export class AIDetectionController {
         const aiType = this.detectAITypeFromName(nameToCheck);
         this.log(`🔍 attachToTerminalById: detected aiType=${aiType} from name="${nameToCheck}"`);
 
-        await this.activateSidecar(aiType, terminal);
+        await this.activateCodeSquad(aiType, terminal);
     }
 
     /**
-     * Show picker to attach Sidecar to an existing terminal.
-     * Shows terminals that don't have a Sidecar panel attached.
+     * Show picker to attach Code Squad to an existing terminal.
+     * Shows terminals that don't have a Code Squad panel attached.
      */
     async attachToTerminal(): Promise<void> {
         const terminals = vscode.window.terminals;
@@ -802,14 +802,14 @@ export class AIDetectionController {
         // Log current state for debugging
         this.log(`📋 attachToTerminal: ${availableTerminals.length} terminals`);
         for (const t of availableTerminals) {
-            const panel = SidecarPanelAdapter.getPanel(t.terminalId);
+            const panel = CodeSquadPanelAdapter.getPanel(t.terminalId);
             this.log(`  - ${t.label} (${t.terminalId}): session=${t.hasSession}, panel=${!!panel}`);
         }
 
         // Clean up orphaned sessions (session exists but panel is gone)
         for (const t of availableTerminals) {
             if (t.hasSession) {
-                const panel = SidecarPanelAdapter.getPanel(t.terminalId);
+                const panel = CodeSquadPanelAdapter.getPanel(t.terminalId);
                 if (!panel) {
                     // Session exists but panel is gone - clean up
                     this.log(`🧹 Cleaning orphaned session: ${t.terminalId}`);
@@ -833,7 +833,7 @@ export class AIDetectionController {
                 }));
 
                 const pick = await vscode.window.showQuickPick(items, {
-                    title: 'Show Sidecar Panel',
+                    title: 'Show Code Squad Panel',
                     placeHolder: 'All terminals have panels. Select one to show:',
                 });
 
@@ -841,7 +841,7 @@ export class AIDetectionController {
                     const selected = sessionsWithPanels.find((t) => t.label === pick.label);
                     if (selected) {
                         this.log(`📋 User selected "${selected.label}" (${selected.terminalId})`);
-                        const panel = SidecarPanelAdapter.getPanel(selected.terminalId);
+                        const panel = CodeSquadPanelAdapter.getPanel(selected.terminalId);
                         this.log(`📋 getPanel returned: ${panel ? 'found' : 'undefined'}`);
                         if (panel) {
                             panel.show();
@@ -860,7 +860,7 @@ export class AIDetectionController {
             this.log(`📋 Only one terminal available, auto-attaching`);
             const t = terminalsWithoutSession[0];
             const aiType = this.detectAITypeFromName(t.terminal.name);
-            await this.activateSidecar(aiType, t.terminal);
+            await this.activateCodeSquad(aiType, t.terminal);
             return;
         }
 
@@ -871,8 +871,8 @@ export class AIDetectionController {
         }));
 
         const pick = await vscode.window.showQuickPick(items, {
-            title: 'Attach Sidecar to Terminal',
-            placeHolder: 'Select a terminal to attach Sidecar panel',
+            title: 'Attach Code Squad to Terminal',
+            placeHolder: 'Select a terminal to attach Code Squad panel',
         });
 
         if (!pick) {
@@ -886,6 +886,6 @@ export class AIDetectionController {
 
         // Detect AI type from terminal name and activate
         const aiType = this.detectAITypeFromName(selected.terminal.name);
-        await this.activateSidecar(aiType, selected.terminal);
+        await this.activateCodeSquad(aiType, selected.terminal);
     }
 }

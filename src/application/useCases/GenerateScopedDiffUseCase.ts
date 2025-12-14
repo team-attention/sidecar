@@ -26,7 +26,7 @@ export class GenerateScopedDiffUseCase implements IGenerateScopedDiffUseCase {
         try {
             fileContent = await this.fileSystemPort.readFile(absolutePath);
         } catch (error) {
-            console.warn('[Sidecar] Failed to read file content:', error);
+            console.warn('[Code Squad] Failed to read file content:', error);
         }
 
         // Get scope information from LSP
@@ -35,7 +35,7 @@ export class GenerateScopedDiffUseCase implements IGenerateScopedDiffUseCase {
             scopes = await this.symbolPort.getAllFileSymbols(absolutePath);
         } catch (error) {
             // LSP failed, will fall back to chunk-based view
-            console.warn('[Sidecar] Symbol extraction failed:', error);
+            console.warn('[Code Squad] Symbol extraction failed:', error);
         }
 
         return this.scopeMappingService.mapDiffToScopes(diff, scopes, fileContent);

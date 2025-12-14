@@ -2,7 +2,7 @@ export const webviewHtml = `
 <body class="sidebar-collapsed">
   <div class="sidebar collapsed">
     <div class="header">
-      <h2 id="header-title">Sidecar</h2>
+      <h2 id="header-title">Code Squad</h2>
       <div class="status" id="status-badge">
         <span id="ai-status-dot">●</span>
         <span id="ai-type">Ready</span>

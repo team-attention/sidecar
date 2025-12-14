@@ -184,7 +184,7 @@ function getLanguageFromPath(filePath: string): string {
 // ===== Expose to window =====
 declare global {
     interface Window {
-        SidecarHighlighter: {
+        CodeSquadHighlighter: {
             highlightLines: typeof highlightLines;
             highlightCodeBlock: typeof highlightCodeBlock;
             getLanguageFromPath: typeof getLanguageFromPath;
@@ -193,7 +193,7 @@ declare global {
     }
 }
 
-window.SidecarHighlighter = {
+window.CodeSquadHighlighter = {
     highlightLines,
     highlightCodeBlock,
     getLanguageFromPath,
@@ -203,7 +203,7 @@ window.SidecarHighlighter = {
 };
 
 // Preload highlighter
-window.SidecarHighlighter.preload();
+window.CodeSquadHighlighter.preload();
 
 // Import and initialize the main application
 import './webview-app';

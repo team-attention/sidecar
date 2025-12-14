@@ -14,7 +14,7 @@ export class JsonCommentRepository implements ICommentRepository {
                 fs.mkdirSync(vscodeDir);
             }
             const legacyPath = path.join(vscodeDir, 'sidemirror-comments.json');
-            const newPath = path.join(vscodeDir, 'sidecar-comments.json');
+            const newPath = path.join(vscodeDir, 'code-squad-comments.json');
 
             this.storagePath = newPath;
 
@@ -93,7 +93,7 @@ export class JsonCommentRepository implements ICommentRepository {
             const parsed: CommentData[] = JSON.parse(data);
             this.comments = parsed.map(d => new Comment(d));
         } catch (e) {
-            console.error('[Sidecar] Failed to load comments', e);
+            console.error('[Code Squad] Failed to load comments', e);
         }
     }
 
@@ -103,7 +103,7 @@ export class JsonCommentRepository implements ICommentRepository {
                 const data = this.comments.map(c => c.toData());
                 fs.writeFileSync(this.storagePath, JSON.stringify(data, null, 2));
             } catch (e) {
-                console.error('[Sidecar] Failed to save comments', e);
+                console.error('[Code Squad] Failed to save comments', e);
             }
         }
     }

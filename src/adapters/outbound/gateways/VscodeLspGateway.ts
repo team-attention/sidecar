@@ -17,7 +17,7 @@ export class VscodeLspGateway implements ISymbolPort {
 
             return this.findEnclosingSymbol(symbols, line);
         } catch (error) {
-            console.error('[Sidecar] Failed to get document symbols:', error);
+            console.error('[Code Squad] Failed to get document symbols:', error);
             return null;
         }
     }
@@ -37,7 +37,7 @@ export class VscodeLspGateway implements ISymbolPort {
 
             return this.collectScopesInRange(symbols, startLine, endLine);
         } catch (error) {
-            console.error('[Sidecar] Failed to get document symbols:', error);
+            console.error('[Code Squad] Failed to get document symbols:', error);
             return [];
         }
     }
@@ -57,7 +57,7 @@ export class VscodeLspGateway implements ISymbolPort {
 
             return this.flattenSymbols(symbols);
         } catch (error) {
-            console.error('[Sidecar] Failed to get document symbols:', error);
+            console.error('[Code Squad] Failed to get document symbols:', error);
             return [];
         }
     }

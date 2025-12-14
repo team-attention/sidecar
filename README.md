@@ -1,13 +1,13 @@
 <div align="center">
 
-<img alt="Sidecar" src="assets/sidecar-full.png" width="400">
+<img alt="Code Squad" src="assets/code-squad-full.png" width="400">
 
 <br />
 
 **Building with AI, the right way.**
 
 
-[![Open VSX Downloads](https://img.shields.io/open-vsx/dt/JakePark/Sidecar?label=Downloads&color=teal)](https://open-vsx.org/extension/JakePark/Sidecar)
+[![Open VSX Downloads](https://img.shields.io/open-vsx/dt/JakePark/code-squad?label=Downloads&color=teal)](https://open-vsx.org/extension/JakePark/code-squad)
 [![GitHub Stars](https://img.shields.io/github/stars/team-attention/sidecar?style=flat&color=yellow)](https://github.com/team-attention/sidecar)
 [![License](https://img.shields.io/github/license/team-attention/sidecar)](LICENSE)
 
@@ -19,13 +19,13 @@ https://github.com/user-attachments/assets/51aa09b2-072a-47f7-b8be-f49e05493ca6
 
 <br />
 
-## Why Sidecar?
+## Why Code Squad?
 
 Vibe coding is amazing... until you review the changes.
 
 AI writes fast. Too fast. Files pile up, changes scatter everywhere, and suddenly you're juggling tabs, hunting diffs, fixing things by hand. The conversation breaks. The momentum dies.
 
-**Sidecar keeps the conversation going.**
+**Code Squad keeps the conversation going.**
 
 One seamless flow — talk to AI, review what it built, give feedback, keep building. All in one place, without breaking the rhythm.
 
@@ -33,13 +33,13 @@ One seamless flow — talk to AI, review what it built, give feedback, keep buil
 
 ## Features
 
-**👁️ Unified View**
+**Unified View**
 All AI outputs — code, docs, configs — organized in a single panel. No more hunting through files.
 
-**💬 Inline Comments**
+**Inline Comments**
 Select lines, leave feedback, send to AI. Talk to AI in context, not in a separate terminal.
 
-**🧩 Structured Diffs**
+**Structured Diffs**
 Changes grouped by function, class, or module. See the intent, not just the diff.
 
 ---
@@ -49,7 +49,7 @@ Changes grouped by function, class, or module. See the intent, not just the diff
 ```
 1. Install from VS Marketplace
 2. Start Claude Code, Codex, or Gemini CLI
-3. Sidecar opens automatically
+3. Code Squad opens automatically
 ```
 
 ---
@@ -70,16 +70,16 @@ Changes grouped by function, class, or module. See the intent, not just the diff
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `sidecar.autoDetect` | `true` | Auto-detect AI tools in terminal |
-| `sidecar.autoShowPanel` | `true` | Open panel when AI tool detected |
-| `sidecar.includeFiles` | `[]` | Glob patterns for gitignored files |
+| `codeSquad.autoDetect` | `true` | Auto-detect AI tools in terminal |
+| `codeSquad.autoShowPanel` | `true` | Open panel when AI tool detected |
+| `codeSquad.includeFiles` | `[]` | Glob patterns for gitignored files |
 
 <details>
 <summary><strong>Tracking gitignored files</strong></summary>
 
 ```json
 {
-  "sidecar.includeFiles": ["dist/**", ".env.local"]
+  "codeSquad.includeFiles": ["dist/**", ".env.local"]
 }
 ```
 
