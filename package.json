@@ -60,25 +60,9 @@
         "title": "Code Squad: Attach to Terminal"
       },
       {
-        "command": "codeSquad.selectThread",
-        "title": "Code Squad: Select Thread"
-      },
-      {
-        "command": "codeSquad.cycleThreads",
-        "title": "Code Squad: Cycle Through Threads"
-      },
-      {
         "command": "codeSquad.createAgent",
         "title": "Code Squad: Create New Agent",
         "icon": "$(add)"
-      }
-    ],
-    "keybindings": [
-      {
-        "command": "codeSquad.cycleThreads",
-        "key": "ctrl+shift+a",
-        "mac": "cmd+shift+a",
-        "when": "codeSquad.hasMultipleThreads"
       }
     ],
     "configuration": {

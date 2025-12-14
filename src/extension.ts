@@ -194,13 +194,6 @@ export function activate(context: vscode.ExtensionContext) {
     fileWatchController.activate(context);
     threadListController.activate(context);
 
-    // Register cycleThreads command
-    context.subscriptions.push(
-        vscode.commands.registerCommand('codeSquad.cycleThreads', () => {
-            threadListController.cycleToNextThread();
-        })
-    );
-
     // Register createAgent command
     context.subscriptions.push(
         vscode.commands.registerCommand('codeSquad.createAgent', () => {

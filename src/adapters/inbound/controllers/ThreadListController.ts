@@ -41,16 +41,6 @@ export class ThreadListController {
         );
         context.subscriptions.push(registration);
         this.disposables.push(registration);
-
-        // Register select command
-        this.disposables.push(
-            vscode.commands.registerCommand('codeSquad.selectThread', async (id: string) => {
-                await this.selectThread(id);
-            })
-        );
-
-        // Set context for keyboard shortcut
-        this.updateContextKey();
     }
 
     /**
@@ -180,31 +170,11 @@ export class ThreadListController {
     }
 
     /**
-     * Cycle to next thread.
-     */
-    async cycleToNextThread(): Promise<void> {
-        const sessions = this.getSessions();
-        const sessionIds = Array.from(sessions.keys());
-
-        if (sessionIds.length === 0) {
-            return;
-        }
-
-        const currentIndex = this.selectedThreadId
-            ? sessionIds.indexOf(this.selectedThreadId)
-            : -1;
-        const nextIndex = (currentIndex + 1) % sessionIds.length;
-
-        await this.selectThread(sessionIds[nextIndex]);
-    }
-
-    /**
      * Refresh thread list.
      * Call when sessions change.
      */
     refresh(): void {
         this.webviewProvider?.refresh();
-        this.updateContextKey();
     }
 
     /**
@@ -329,18 +299,6 @@ export class ThreadListController {
      */
     private getWorkspaceRoot(): string | undefined {
         return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    }
-
-    /**
-     * Update context key for keyboard shortcut condition.
-     */
-    private updateContextKey(): void {
-        const sessions = this.getSessions();
-        vscode.commands.executeCommand(
-            'setContext',
-            'codeSquad.hasMultipleThreads',
-            sessions.size > 1
-        );
     }
 
     dispose(): void {
