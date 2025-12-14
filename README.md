@@ -32,7 +32,7 @@ One seamless flow — talk to AI, review what it built, give feedback, keep buil
 ### Agent Management
 - Create multiple agent sessions with isolated terminals
 - Real-time status tracking (working, idle, waiting)
-- Switch between agents with `Cmd+Shift+A`
+- Click sidebar to switch between agents
 
 ### Git Isolation
 - **Local**: Work in current branch
