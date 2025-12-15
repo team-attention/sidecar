@@ -1,8 +1,8 @@
 {
   "name": "sidecar",
-  "displayName": "Sidecar",
+  "displayName": "Sidecar (Deprecated)",
   "description": "Stay in flow while building with AI",
-  "version": "0.0.46",
+  "version": "0.0.47",
   "publisher": "JakePark",
   "repository": {
     "type": "git",
