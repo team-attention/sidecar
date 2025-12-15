@@ -31,7 +31,8 @@ export class ThreadListController {
             context.extensionUri,
             this.getSessions,
             (id) => this.selectThread(id),
-            (options) => this.createThreadFromInput(options)
+            (options) => this.createThreadFromInput(options),
+            (id) => this.openNewTerminal(id)
         );
 
         // Register webview view provider
@@ -299,6 +300,24 @@ export class ThreadListController {
      */
     private getWorkspaceRoot(): string | undefined {
         return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    }
+
+    /**
+     * Open a new terminal in the thread's working directory.
+     */
+    async openNewTerminal(id: string): Promise<void> {
+        const sessions = this.getSessions();
+        const context = sessions.get(id);
+
+        if (!context) {
+            return;
+        }
+
+        const threadState = context.threadState;
+        const workingDir = threadState?.worktreePath || context.workspaceRoot;
+        const name = threadState?.name ?? context.session.displayName;
+
+        await this.terminalGateway.createTerminal(`Terminal: ${name}`, workingDir, true);
     }
 
     dispose(): void {

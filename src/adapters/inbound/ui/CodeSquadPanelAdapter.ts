@@ -637,7 +637,9 @@ export class CodeSquadPanelAdapter {
 
         try {
             const document = await vscode.workspace.openTextDocument(uri);
-            await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
+            // Open in the same view column as the sidecar panel
+            const viewColumn = this.panel.viewColumn ?? vscode.ViewColumn.One;
+            await vscode.window.showTextDocument(document, viewColumn);
         } catch (error) {
             console.error('[Code Squad] Failed to open file:', error);
         }

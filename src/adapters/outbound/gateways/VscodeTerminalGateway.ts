@@ -183,13 +183,18 @@ export class VscodeTerminalGateway implements ITerminalPort {
         }
     }
 
-    async createTerminal(name: string, cwd?: string): Promise<string> {
+    async createTerminal(name: string, cwd?: string, openInPanel?: boolean): Promise<string> {
         const terminal = vscode.window.createTerminal({
             name,
             cwd,
-            location: { viewColumn: vscode.ViewColumn.One },
+            location: openInPanel ? vscode.TerminalLocation.Panel : { viewColumn: vscode.ViewColumn.One },
         });
         terminal.show();
+
+        // If opening in panel, ensure the panel is visible (user may have hidden it with Cmd+J)
+        if (openInPanel) {
+            await vscode.commands.executeCommand('workbench.action.terminal.focus');
+        }
 
         const processId = await terminal.processId;
         const terminalId = processId?.toString() ?? `terminal-${Date.now()}`;

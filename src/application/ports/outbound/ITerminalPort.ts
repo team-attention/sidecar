@@ -6,7 +6,7 @@ export interface ITerminalPort {
     initialize(): void;
     sendText(terminalId: string, text: string): void;
     showTerminal(terminalId: string): void;
-    createTerminal(name: string, cwd?: string): Promise<string>;
+    createTerminal(name: string, cwd?: string, openInPanel?: boolean): Promise<string>;
     /**
      * Register a callback to receive terminal activity notifications.
      * Called with hasActivity=true when terminal is writing output (AI running).
