@@ -158,11 +158,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Focus terminal when notification is clicked
-    detectThreadStatusUseCase.onNotificationClick((terminalId) => {
-        terminalGateway.showTerminal(terminalId);
-    });
-
     // Subscribe to AI type changes from output pattern detection (backup for command detection)
     detectThreadStatusUseCase.onAITypeChange((terminalId, detectedAIType) => {
         const sessions = aiDetectionController.getSessions();

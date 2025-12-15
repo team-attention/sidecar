@@ -31,24 +31,19 @@ export class DetectThreadStatusUseCase implements IDetectThreadStatusUseCase {
     private aiTypeCallbacks: AITypeChangeCallback[] = [];
 
     // Time to wait after last output before switching to idle
-    // Claude outputs every ~100ms when working, so 500ms silence means done
-    private static IDLE_TIMEOUT_MS = 500;
+    // Claude outputs every ~100ms when working, so 2000ms silence means done
+    // (Increased from 500ms to reduce flickering between states)
+    private static IDLE_TIMEOUT_MS = 2000;
     // Buffer only needed for patterns split across chunk boundaries
     // Longest pattern is ~30 chars, so 100 chars is plenty
     private static MAX_BUFFER_SIZE = 100;
     // Time to wait before showing notification when agent is waiting
     private static WAITING_NOTIFICATION_MS = 2000;
 
-    private focusTerminalCallback?: (terminalId: string) => void;
-
     constructor(
         private detector: ITerminalStatusDetector,
         private notificationPort?: INotificationPort
     ) {}
-
-    onNotificationClick(callback: (terminalId: string) => void): void {
-        this.focusTerminalCallback = callback;
-    }
 
     /**
      * Schedule idle/waiting transition after IDLE_TIMEOUT_MS of no output.
@@ -278,8 +273,8 @@ export class DetectThreadStatusUseCase implements IDetectThreadStatusUseCase {
                         const threadName = state.threadName || 'Agent';
                         this.notificationPort?.showSystemNotification(
                             'Code Squad',
-                            `${threadName} is waiting for your input`,
-                            () => this.focusTerminalCallback?.(terminalId)
+                            `${threadName} is waiting for your input`
+                            // Auto-focus on click disabled - users found it distracting
                         );
                     }
                 }, DetectThreadStatusUseCase.WAITING_NOTIFICATION_MS);
