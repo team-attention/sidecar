@@ -15,6 +15,12 @@ export interface IPanelStateManager {
     removeSessionFile(path: string): void;
     selectFile(path: string | null): void;
 
+    /**
+     * Atomically update multiple session files in a single render.
+     * Used by batch flush mechanism to prevent UI thrashing.
+     */
+    updateSessionFilesBatch(files: FileInfo[]): void;
+
     // Baseline operations
     setBaseline(files: FileInfo[]): void;
     isInBaseline(path: string): boolean;

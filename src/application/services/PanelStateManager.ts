@@ -89,6 +89,37 @@ export class PanelStateManager implements IPanelStateManager {
         }
     }
 
+    updateSessionFilesBatch(files: FileInfo[]): void {
+        let stateChanged = false;
+
+        for (const file of files) {
+            const existingIndex = this.state.sessionFiles.findIndex(
+                (f) => f.path === file.path
+            );
+
+            if (file.status === 'deleted') {
+                // Handle deletion
+                if (existingIndex !== -1) {
+                    this.state.sessionFiles.splice(existingIndex, 1);
+                    stateChanged = true;
+                }
+            } else if (existingIndex === -1) {
+                // Add new file to front (most recent first)
+                this.state.sessionFiles.unshift(file);
+                stateChanged = true;
+            } else {
+                // Update existing file
+                this.state.sessionFiles[existingIndex] = file;
+                stateChanged = true;
+            }
+        }
+
+        // Single render after all updates
+        if (stateChanged) {
+            this.render();
+        }
+    }
+
     // ===== Baseline operations =====
 
     setBaseline(files: FileInfo[]): void {
