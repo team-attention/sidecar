@@ -680,25 +680,7 @@ export class FileWatchController {
                 sessionContext.stateManager.updateSessionFilesBatch(fileInfos);
 
                 // Auto-mount diff for the focused session
-                if (terminalId === this.currentThreadId && fileInfos.length > 0) {
-                    const currentState = sessionContext.stateManager.getState();
-                    const firstNewFile = fileInfos.find(f => f.status !== 'deleted');
-
-                    // Auto-mount first diff if:
-                    // 1. No file is currently selected, OR
-                    // 2. Currently selected file was modified
-                    const shouldAutoMount =
-                        (!currentState.selectedFile && firstNewFile) ||
-                        fileInfos.some(f => f.path === currentState.selectedFile && f.status !== 'deleted');
-
-                    if (shouldAutoMount) {
-                        const fileToMount = currentState.selectedFile || firstNewFile?.path;
-                        if (fileToMount) {
-                            this.log(`[Batch] Auto-mounting diff for focused session: ${fileToMount}`);
-                            await this.autoMountDiff(sessionContext, fileToMount);
-                        }
-                    }
-                }
+                await this.maybeAutoMountDiffForFocusedSession(sessionContext, terminalId, fileInfos, 'Batch');
             }
 
             // Track file ownership for the focused thread
@@ -1320,25 +1302,7 @@ export class FileWatchController {
             session.stateManager.updateSessionFilesBatch(fileInfos);
 
             // Auto-mount diff for the focused worktree session
-            if (terminalId === this.currentThreadId && fileInfos.length > 0) {
-                const currentState = session.stateManager.getState();
-                const firstNewFile = fileInfos.find(f => f.status !== 'deleted');
-
-                // Auto-mount first diff if:
-                // 1. No file is currently selected, OR
-                // 2. Currently selected file was modified
-                const shouldAutoMount =
-                    (!currentState.selectedFile && firstNewFile) ||
-                    fileInfos.some(f => f.path === currentState.selectedFile && f.status !== 'deleted');
-
-                if (shouldAutoMount) {
-                    const fileToMount = currentState.selectedFile || firstNewFile?.path;
-                    if (fileToMount) {
-                        this.log(`[Worktree:Batch] Auto-mounting diff for focused session: ${fileToMount}`);
-                        await this.autoMountDiff(session, fileToMount);
-                    }
-                }
-            }
+            await this.maybeAutoMountDiffForFocusedSession(session, terminalId, fileInfos, 'Worktree:Batch');
 
             // Track file ownership for this worktree session
             if (session.threadState?.threadId && this.trackFileOwnershipUseCase) {
@@ -1456,6 +1420,38 @@ export class FileWatchController {
         stateManager.setBaseline(baselineFiles);
 
         this.log(`[Worktree] Session ${terminalId}: removed ${filesToRemove.length} files`);
+    }
+
+    /**
+     * Determines if a diff should be auto-mounted for the focused session and performs the mount.
+     */
+    private async maybeAutoMountDiffForFocusedSession(
+        sessionContext: SessionContext,
+        terminalId: string,
+        fileInfos: FileInfo[],
+        logPrefix: string
+    ): Promise<void> {
+        if (terminalId !== this.currentThreadId || fileInfos.length === 0) {
+            return;
+        }
+
+        const currentState = sessionContext.stateManager.getState();
+        const firstChange = fileInfos.find(f => f.status !== 'deleted');
+
+        // Auto-mount first diff if:
+        // 1. No file is currently selected, and there's a file change.
+        // 2. The currently selected file was modified.
+        const shouldAutoMount =
+            (!currentState.selectedFile && firstChange) ||
+            fileInfos.some(f => f.path === currentState.selectedFile && f.status !== 'deleted');
+
+        if (shouldAutoMount) {
+            const fileToMount = currentState.selectedFile || firstChange?.path;
+            if (fileToMount) {
+                this.log(`[${logPrefix}] Auto-mounting diff for focused session: ${fileToMount}`);
+                await this.autoMountDiff(sessionContext, fileToMount);
+            }
+        }
     }
 
     /**
