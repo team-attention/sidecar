@@ -10,6 +10,12 @@ import { DiffResult } from '../../../domain/entities/Diff';
 import { GitExtension, GitAPI, Repository, Change, Status } from '../../../types/git';
 import { IThreadStateRepository } from '../../../application/ports/outbound/IThreadStateRepository';
 import { ITrackFileOwnershipUseCase } from '../../../application/ports/inbound/ITrackFileOwnershipUseCase';
+import {
+    BatchEventCollector,
+    IBatchEventCollector,
+    FileChangeEvent,
+    coalesceFileEvents
+} from '../../../application/services/BatchEventCollector';
 
 /** Pending debounced event data */
 interface DebouncedEventData {
@@ -120,13 +126,21 @@ export class FileWatchController {
     private pendingEvents = 0;
     private maxPendingEvents = 0;
 
-    // ===== Debounce =====
+    // ===== Debounce (legacy, being phased out) =====
     /** Per-file debounce timers */
     private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
     /** Stored event data for pending debounced events */
     private pendingEventData: Map<string, DebouncedEventData> = new Map();
     /** Current debounce delay in ms (0 = disabled) */
     private debounceMs: number = 300;
+
+    // ===== Batch Event Collection =====
+    /** Batch event collector for coalescing file changes */
+    private batchCollector: IBatchEventCollector | undefined;
+    /** Batch window timer (ms) - max time before flush */
+    private batchWindowMs: number = 100;
+    /** Batch idle timer (ms) - idle time after last event before flush */
+    private batchIdleMs: number = 50;
 
     // ===== Thread tracking =====
     /** Current thread's terminal ID (null = no thread selected) */
@@ -352,6 +366,28 @@ export class FileWatchController {
         this.log(`Debounce config loaded: ${this.debounceMs}ms`);
     }
 
+    private loadBatchConfig(): void {
+        const config = vscode.workspace.getConfiguration('codeSquad');
+        this.batchWindowMs = config.get<number>('fileWatchBatchWindowMs', 100);
+        this.batchIdleMs = config.get<number>('fileWatchBatchIdleMs', 50);
+        this.log(`Batch config loaded: window=${this.batchWindowMs}ms, idle=${this.batchIdleMs}ms`);
+    }
+
+    private initBatchCollector(): void {
+        // Dispose existing collector if any
+        this.batchCollector?.dispose();
+
+        this.batchCollector = new BatchEventCollector({
+            batchWindowMs: this.batchWindowMs,
+            batchIdleMs: this.batchIdleMs
+        });
+
+        // Subscribe to batch ready events
+        this.batchCollector.onBatchReady((events) => this.processBatch(events));
+
+        this.log(`BatchEventCollector initialized: window=${this.batchWindowMs}ms, idle=${this.batchIdleMs}ms`);
+    }
+
     /**
      * Initialize Git Extension API for efficient file change tracking.
      * Falls back to whitelist-only mode if git extension unavailable.
@@ -428,9 +464,10 @@ export class FileWatchController {
     /**
      * Handle git repository state change - process changed files.
      * Deduplicates files that appear in both workingTreeChanges and indexChanges.
+     * Uses BatchEventCollector to batch events for efficient processing.
      */
-    private async handleGitStateChange(): Promise<void> {
-        if (!this.repository) return;
+    private handleGitStateChange(): void {
+        if (!this.repository || !this.batchCollector) return;
 
         const state = this.repository.state;
         const changes = [...state.workingTreeChanges, ...state.indexChanges];
@@ -450,7 +487,7 @@ export class FileWatchController {
 
         this.log(`[Git] State change: ${uniqueChanges.size} unique files`);
 
-        // Process each changed file
+        // Add each changed file to batch collector
         for (const [fsPath, change] of uniqueChanges) {
             // Skip if recently processed (dedup rapid git events)
             const now = Date.now();
@@ -460,28 +497,22 @@ export class FileWatchController {
             }
             this.lastProcessedChanges.set(fsPath, now);
 
-            const relativePath = vscode.workspace.asRelativePath(change.uri);
-            const fileName = path.basename(relativePath);
-
             this.eventCount++;
             this.eventCountWindow.push(now);
 
-            this.log(`[Git] Event #${this.eventCount}: ${relativePath} (status=${Status[change.status]})`);
+            // Map git status to event type
+            const eventType = this.mapGitStatusToEventType(change.status);
+
+            this.log(`[Git] Event #${this.eventCount}: ${vscode.workspace.asRelativePath(change.uri)} (status=${Status[change.status]})`);
             this.logStats();
 
-            // Process immediately (git already batches)
-            this.pendingEvents++;
-            this.maxPendingEvents = Math.max(this.maxPendingEvents, this.pendingEvents);
-            try {
-                await this.processFileChange({
-                    uri: change.uri,
-                    relativePath,
-                    fileName,
-                    timestamp: now
-                });
-            } finally {
-                this.pendingEvents--;
-            }
+            // Add to batch collector instead of processing immediately
+            this.batchCollector.addEvent({
+                uri: { fsPath },
+                type: eventType,
+                timestamp: now,
+                source: 'git'
+            });
         }
 
         // Cleanup old entries from lastProcessedChanges (older than 5 seconds)
@@ -491,6 +522,22 @@ export class FileWatchController {
                 this.lastProcessedChanges.delete(filePath);
             }
         }
+    }
+
+    /**
+     * Map git Status enum to FileChangeEvent type.
+     */
+    private mapGitStatusToEventType(status: Status): 'create' | 'change' | 'delete' {
+        // Status.INDEX_ADDED = 1, Status.UNTRACKED = 7
+        if (status === Status.INDEX_ADDED || status === Status.UNTRACKED) {
+            return 'create';
+        }
+        // Status.DELETED = 6, Status.INDEX_DELETED = 2
+        if (status === Status.DELETED || status === Status.INDEX_DELETED) {
+            return 'delete';
+        }
+        // All others (MODIFIED, INDEX_MODIFIED, etc.)
+        return 'change';
     }
 
     /**
@@ -556,61 +603,27 @@ export class FileWatchController {
 
     /**
      * Handle file change from whitelist watcher.
-     * Applies debounce logic to prevent rapid event processing.
+     * Uses BatchEventCollector for batching instead of per-file debounce.
      */
     private handleWhitelistFileChange(uri: vscode.Uri): void {
+        if (!this.batchCollector) return;
+
         const relativePath = vscode.workspace.asRelativePath(uri);
-        const fileName = path.basename(relativePath);
+        const now = Date.now();
 
         this.eventCount++;
-        this.eventCountWindow.push(Date.now());
+        this.eventCountWindow.push(now);
 
         this.log(`[Whitelist] Event #${this.eventCount}: ${relativePath}`);
         this.logStats();
 
-        // Apply debouncing for whitelist files
-        if (this.debounceMs === 0) {
-            this.pendingEvents++;
-            this.maxPendingEvents = Math.max(this.maxPendingEvents, this.pendingEvents);
-            this.processFileChange({ uri, relativePath, fileName, timestamp: Date.now() })
-                .finally(() => this.pendingEvents--);
-            return;
-        }
-
-        // Existing debounce logic
-        const existingTimer = this.debounceTimers.get(relativePath);
-        if (existingTimer) {
-            clearTimeout(existingTimer);
-            this.log(`[Debounce] Coalesced: ${relativePath}`);
-        } else {
-            this.log(`[Debounce] Scheduled: ${relativePath} (delay=${this.debounceMs}ms)`);
-        }
-
-        this.pendingEventData.set(relativePath, {
-            uri,
-            relativePath,
-            fileName,
-            timestamp: Date.now()
+        // Add to batch collector for efficient batching
+        this.batchCollector.addEvent({
+            uri: { fsPath: uri.fsPath },
+            type: 'change',
+            timestamp: now,
+            source: 'whitelist'
         });
-
-        const timer = setTimeout(async () => {
-            const eventData = this.pendingEventData.get(relativePath);
-            this.debounceTimers.delete(relativePath);
-            this.pendingEventData.delete(relativePath);
-
-            if (eventData) {
-                this.log(`[Debounce] Fired: ${relativePath} (pending=${this.debounceTimers.size})`);
-                this.pendingEvents++;
-                this.maxPendingEvents = Math.max(this.maxPendingEvents, this.pendingEvents);
-                try {
-                    await this.processFileChange(eventData);
-                } finally {
-                    this.pendingEvents--;
-                }
-            }
-        }, this.debounceMs);
-
-        this.debounceTimers.set(relativePath, timer);
     }
 
     reload(): void {
@@ -632,6 +645,10 @@ export class FileWatchController {
      */
     dispose(): void {
         const timerCount = this.debounceTimers.size;
+
+        // Dispose batch collector
+        this.batchCollector?.dispose();
+        this.batchCollector = undefined;
 
         // Clear all pending debounce timers
         for (const [filePath, timer] of this.debounceTimers) {
@@ -816,12 +833,99 @@ export class FileWatchController {
         }
     }
 
+    /**
+     * Process a batch of file change events.
+     * Called by BatchEventCollector when batch is ready.
+     */
+    private async processBatch(events: FileChangeEvent[]): Promise<void> {
+        const startTime = Date.now();
+        const coalesced = coalesceFileEvents(events);
+
+        if (coalesced.length === 0) {
+            this.log(`[Batch] Empty batch after coalescing`);
+            return;
+        }
+
+        this.log(`[Batch] Processing ${coalesced.length} files (from ${events.length} events)`);
+
+        // Skip if no active sessions
+        if (!this.sessions || this.sessions.size === 0) {
+            this.log(`[Batch] Skip: no sessions`);
+            return;
+        }
+
+        try {
+            // Collect FileInfo for batch update
+            const fileInfos: FileInfo[] = [];
+
+            for (const event of coalesced) {
+                const uri = vscode.Uri.file(event.uri.fsPath);
+                const relativePath = vscode.workspace.asRelativePath(uri);
+                const fileName = path.basename(event.uri.fsPath);
+
+                // Map event type to file status
+                const status = event.type === 'create' ? 'added'
+                             : event.type === 'delete' ? 'deleted'
+                             : 'modified';
+
+                fileInfos.push({
+                    path: relativePath,
+                    name: fileName,
+                    status,
+                });
+            }
+
+            // Update all sessions that use the main workspace
+            for (const [_terminalId, sessionContext] of this.sessions) {
+                // Skip sessions with different workspaceRoot (they have their own watchers)
+                if (sessionContext.workspaceRoot && sessionContext.workspaceRoot !== this.workspaceRoot) {
+                    continue;
+                }
+
+                // Use batch update for single render
+                sessionContext.stateManager.updateSessionFilesBatch(fileInfos);
+            }
+
+            // Track file ownership for the focused thread
+            const focusedThreadId = this.currentThreadId;
+            if (focusedThreadId && this.trackFileOwnershipUseCase) {
+                const focusedSession = this.sessions?.get(focusedThreadId);
+                if (focusedSession?.threadState?.threadId) {
+                    for (const event of coalesced) {
+                        if (event.type !== 'delete') {
+                            const relativePath = vscode.workspace.asRelativePath(
+                                vscode.Uri.file(event.uri.fsPath)
+                            );
+                            await this.trackFileOwnershipUseCase.execute({
+                                filePath: relativePath,
+                                threadId: focusedSession.threadState.threadId
+                            });
+                        }
+                    }
+                }
+            }
+
+            const totalTime = Date.now() - startTime;
+            this.log(`[Batch] Completed: ${coalesced.length} files in ${totalTime}ms`);
+
+            if (totalTime > 200) {
+                this.log(`[Batch] ⚠️ Slow batch processing: ${totalTime}ms total`);
+            }
+        } catch (error) {
+            this.logError('processBatch', error);
+        }
+    }
+
     activate(context: vscode.ExtensionContext): void {
         this.extensionContext = context;
         this.debugChannel = vscode.window.createOutputChannel('Code Squad FileWatch');
         context.subscriptions.push(this.debugChannel);
 
         this.log('Activating file watch with hybrid approach (Git Extension + Whitelist)');
+
+        // Load batch config and initialize collector
+        this.loadBatchConfig();
+        this.initBatchCollector();
 
         // Initialize Git Extension for efficient file change tracking (async, non-blocking)
         this.initGitExtension().then(() => {
@@ -847,6 +951,12 @@ export class FileWatchController {
                 if (e.affectsConfiguration('codeSquad.fileWatchDebounceMs')) {
                     this.log('fileWatchDebounceMs configuration changed');
                     this.loadDebounceConfig();
+                }
+                if (e.affectsConfiguration('codeSquad.fileWatchBatchWindowMs') ||
+                    e.affectsConfiguration('codeSquad.fileWatchBatchIdleMs')) {
+                    this.log('Batch config changed');
+                    this.loadBatchConfig();
+                    this.initBatchCollector();
                 }
             })
         );

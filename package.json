@@ -95,7 +95,22 @@
           "default": 300,
           "minimum": 0,
           "maximum": 2000,
-          "description": "Debounce delay for file change events in milliseconds. Set to 0 to disable debouncing. (Default: 300ms)"
+          "deprecationMessage": "Deprecated. Use codeSquad.fileWatchBatchWindowMs and codeSquad.fileWatchBatchIdleMs instead.",
+          "description": "DEPRECATED: Per-file debounce delay. Replaced by batch settings."
+        },
+        "codeSquad.fileWatchBatchWindowMs": {
+          "type": "number",
+          "default": 100,
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Maximum time to batch file change events before processing (ms). Higher values batch more aggressively."
+        },
+        "codeSquad.fileWatchBatchIdleMs": {
+          "type": "number",
+          "default": 50,
+          "minimum": 0,
+          "maximum": 500,
+          "description": "Idle time after last file event before batch flush (ms). Lower values provide faster response for single file changes."
         },
         "codeSquad.worktreeCopyPatterns": {
           "type": "array",
