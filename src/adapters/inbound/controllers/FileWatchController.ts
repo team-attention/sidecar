@@ -670,7 +670,7 @@ export class FileWatchController {
             }
 
             // Update all sessions that use the main workspace
-            for (const [_terminalId, sessionContext] of this.sessions) {
+            for (const [terminalId, sessionContext] of this.sessions) {
                 // Skip sessions with different workspaceRoot (they have their own watchers)
                 if (sessionContext.workspaceRoot && sessionContext.workspaceRoot !== this.workspaceRoot) {
                     continue;
@@ -678,6 +678,9 @@ export class FileWatchController {
 
                 // Use batch update for single render
                 sessionContext.stateManager.updateSessionFilesBatch(fileInfos);
+
+                // Auto-mount diff for the focused session
+                await this.maybeAutoMountDiffForFocusedSession(sessionContext, terminalId, fileInfos, 'Batch');
             }
 
             // Track file ownership for the focused thread
@@ -1298,6 +1301,9 @@ export class FileWatchController {
             // Use batch update for single render
             session.stateManager.updateSessionFilesBatch(fileInfos);
 
+            // Auto-mount diff for the focused worktree session
+            await this.maybeAutoMountDiffForFocusedSession(session, terminalId, fileInfos, 'Worktree:Batch');
+
             // Track file ownership for this worktree session
             if (session.threadState?.threadId && this.trackFileOwnershipUseCase) {
                 for (const fileInfo of fileInfos) {
@@ -1414,6 +1420,67 @@ export class FileWatchController {
         stateManager.setBaseline(baselineFiles);
 
         this.log(`[Worktree] Session ${terminalId}: removed ${filesToRemove.length} files`);
+    }
+
+    /**
+     * Determines if a diff should be auto-mounted for the focused session and performs the mount.
+     */
+    private async maybeAutoMountDiffForFocusedSession(
+        sessionContext: SessionContext,
+        terminalId: string,
+        fileInfos: FileInfo[],
+        logPrefix: string
+    ): Promise<void> {
+        if (terminalId !== this.currentThreadId || fileInfos.length === 0) {
+            return;
+        }
+
+        const currentState = sessionContext.stateManager.getState();
+        const firstChange = fileInfos.find(f => f.status !== 'deleted');
+
+        // Auto-mount first diff if:
+        // 1. No file is currently selected, and there's a file change.
+        // 2. The currently selected file was modified.
+        const shouldAutoMount =
+            (!currentState.selectedFile && firstChange) ||
+            fileInfos.some(f => f.path === currentState.selectedFile && f.status !== 'deleted');
+
+        if (shouldAutoMount) {
+            const fileToMount = currentState.selectedFile || firstChange?.path;
+            if (fileToMount) {
+                this.log(`[${logPrefix}] Auto-mounting diff for focused session: ${fileToMount}`);
+                await this.autoMountDiff(sessionContext, fileToMount);
+            }
+        }
+    }
+
+    /**
+     * Auto-mount diff for a file in the given session.
+     * Generates diff and displays it in the panel.
+     */
+    private async autoMountDiff(
+        sessionContext: SessionContext,
+        filePath: string
+    ): Promise<void> {
+        const { stateManager, generateDiffUseCase, workspaceRoot } = sessionContext;
+
+        try {
+            const diffResult = await generateDiffUseCase.execute(filePath);
+            if (diffResult) {
+                const effectiveRoot = workspaceRoot || this.workspaceRoot;
+                const displayState = await this.createDiffDisplayState(
+                    diffResult,
+                    filePath,
+                    effectiveRoot
+                );
+                stateManager.showDiff(displayState);
+                this.log(`[AutoMount] Successfully mounted diff for: ${filePath}`);
+            } else {
+                this.log(`[AutoMount] No diff result for: ${filePath}`);
+            }
+        } catch (error) {
+            this.logError('autoMountDiff', error);
+        }
     }
 
     /**
