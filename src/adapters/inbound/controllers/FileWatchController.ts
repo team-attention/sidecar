@@ -120,6 +120,14 @@ export class FileWatchController {
     /** Batch idle timer (ms) - idle time after last event before flush */
     private batchIdleMs: number = 50;
 
+    // ===== Commit Grace Period =====
+    /** Grace period after commit to ignore file change events (ms) */
+    private static readonly COMMIT_GRACE_PERIOD_MS = 200;
+    /** Timestamp when main workspace commit was processed */
+    private lastMainCommitTime: number = 0;
+    /** Timestamps when worktree commits were processed (per terminalId) */
+    private lastWorktreeCommitTimes: Map<string, number> = new Map();
+
     // ===== Thread tracking =====
     /** Current thread's terminal ID (null = no thread selected) */
     private currentThreadId: string | null = null;
@@ -633,6 +641,13 @@ export class FileWatchController {
             return;
         }
 
+        // Skip if within commit grace period (to prevent re-adding files after commit)
+        const now = Date.now();
+        if (now - this.lastMainCommitTime < FileWatchController.COMMIT_GRACE_PERIOD_MS) {
+            this.log(`[Batch] Skip: within commit grace period (${now - this.lastMainCommitTime}ms since commit)`);
+            return;
+        }
+
         try {
             // Collect FileInfo for batch update
             const fileInfos: FileInfo[] = [];
@@ -755,6 +770,15 @@ export class FileWatchController {
             if (currentCommit && currentCommit !== this.lastHeadCommit) {
                 this.log(`Git commit detected: ${this.lastHeadCommit?.slice(0, 7)} -> ${currentCommit.slice(0, 7)}`);
                 this.lastHeadCommit = currentCommit;
+
+                // Flush pending batch events BEFORE processing commit
+                // This prevents race condition where pending file changes
+                // would re-add files that handleCommit removes
+                if (this.batchCollector && this.batchCollector.pendingCount > 0) {
+                    this.log(`[Commit] Flushing ${this.batchCollector.pendingCount} pending events before commit handling`);
+                    await this.batchCollector.flush();
+                }
+
                 await this.handleCommit();
             }
         };
@@ -802,7 +826,9 @@ export class FileWatchController {
             return;
         }
 
-        this.log('Refreshing session files after commit...');
+        // Set grace period timestamp to ignore subsequent file change events
+        this.lastMainCommitTime = Date.now();
+        this.log(`Refreshing session files after commit (grace period until ${this.lastMainCommitTime + FileWatchController.COMMIT_GRACE_PERIOD_MS})...`);
 
         // Get current uncommitted files from git
         const uncommittedFiles = await this.gitPort.getUncommittedFilesWithStatus(this.workspaceRoot);
@@ -1073,6 +1099,15 @@ export class FileWatchController {
             if (currentCommit && currentCommit !== watcher.lastHeadCommit) {
                 this.log(`[Worktree] Git commit detected in ${sessionWorkspaceRoot}: ${watcher.lastHeadCommit?.slice(0, 7)} -> ${currentCommit.slice(0, 7)}`);
                 watcher.lastHeadCommit = currentCommit;
+
+                // Flush pending batch events BEFORE processing commit
+                // This prevents race condition where pending file changes
+                // would re-add files that handleWorktreeCommit removes
+                if (watcher.batchCollector && watcher.batchCollector.pendingCount > 0) {
+                    this.log(`[Worktree:Commit] Flushing ${watcher.batchCollector.pendingCount} pending events before commit handling`);
+                    await watcher.batchCollector.flush();
+                }
+
                 await this.handleWorktreeCommit(terminalId);
             }
         };
@@ -1185,6 +1220,8 @@ export class FileWatchController {
         }
 
         this.sessionWorktreeWatchers.delete(terminalId);
+        // Clean up grace period tracking
+        this.lastWorktreeCommitTimes.delete(terminalId);
         this.log(`[Worktree] Session ${terminalId} unregistered`);
     }
 
@@ -1210,6 +1247,14 @@ export class FileWatchController {
         const session = this.sessions?.get(terminalId);
         if (!session) {
             this.log(`[Worktree:Batch] Skip: session ${terminalId} not found`);
+            return;
+        }
+
+        // Skip if within commit grace period for this worktree session
+        const lastCommitTime = this.lastWorktreeCommitTimes.get(terminalId) ?? 0;
+        const now = Date.now();
+        if (now - lastCommitTime < FileWatchController.COMMIT_GRACE_PERIOD_MS) {
+            this.log(`[Worktree:Batch] Skip: within commit grace period (${now - lastCommitTime}ms since commit) for session ${terminalId}`);
             return;
         }
 
@@ -1334,6 +1379,8 @@ export class FileWatchController {
         const session = this.sessions?.get(terminalId);
         if (!session || !this.gitPort) return;
 
+        // Set grace period timestamp for this worktree session
+        this.lastWorktreeCommitTimes.set(terminalId, Date.now());
         this.log(`[Worktree] Refreshing session ${terminalId} files after commit...`);
 
         const { stateManager } = session;
