@@ -661,9 +661,11 @@ export class AIDetectionController {
             }
 
             // Show options dialog for worktree threads
+            const KEEP_WORKTREE = 'Keep Worktree';
+            const DELETE_WORKTREE_TOO = 'Delete Worktree Too';
             const options: vscode.MessageItem[] = [
-                { title: 'Keep Worktree' },
-                { title: 'Delete Worktree Too' },
+                { title: KEEP_WORKTREE },
+                { title: DELETE_WORKTREE_TOO },
             ];
 
             const result = await vscode.window.showWarningMessage(
@@ -675,7 +677,7 @@ export class AIDetectionController {
             // Always flush session first since terminal is already closed
             this.flushSession(terminalId);
 
-            const removeWorktree = result?.title === 'Delete Worktree Too';
+            const removeWorktree = result?.title === DELETE_WORKTREE_TOO;
 
             // Execute delete thread use case to clean up thread state and optionally worktree
             await this.deleteThreadUseCase.execute({
