@@ -181,7 +181,7 @@ export class VscodeTerminalGateway implements ITerminalPort {
         if (terminal) {
             terminal.show(false); // false = take focus (don't preserve current focus)
             // Explicitly focus the terminal to ensure input focus when clicking from webview
-            vscode.commands.executeCommand('workbench.action.terminal.focus');
+            vscode.commands.executeCommand('workbench.action.terminal.focus').then(undefined, (err) => this.log('Error focusing terminal: ' + err));
         }
     }
 
