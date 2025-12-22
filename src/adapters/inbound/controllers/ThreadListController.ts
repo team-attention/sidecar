@@ -362,11 +362,12 @@ export class ThreadListController {
             const attachedPaths = new Set(
                 Array.from(sessions.values())
                     .map(ctx => ctx.threadState?.worktreePath)
-                    .filter(Boolean)
+                    .filter((path): path is string => !!path)
             );
 
             return allWorktrees.filter(wt => !attachedPaths.has(wt.path)).length;
-        } catch {
+        } catch (error) {
+            console.error('[Code Squad] Failed to get available worktree count:', error);
             return 0;
         }
     }
