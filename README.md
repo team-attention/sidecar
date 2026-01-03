@@ -51,6 +51,7 @@ A terminal opens. Run your preferred AI agent:
 claude    # Claude Code
 codex     # OpenAI Codex CLI
 gemini    # Gemini CLI
+opencode  # OpenCode
 ```
 
 ### 3. Review Changes
@@ -79,7 +80,7 @@ AI starts fixing immediately
 | **Thread Management** | Run multiple AI agents in isolated workspaces |
 | **Isolation Modes** | `Local` (current branch) or `Worktree` (isolated directory) |
 | **Attach to Worktree** | Connect Code Squad to existing git worktrees |
-| **Auto-Detect** | Automatically detects `claude`, `codex`, `gemini` |
+| **Auto-Detect** | Automatically detects `claude`, `codex`, `gemini`, `opencode` |
 | **Diff View** | GitHub-style change comparison |
 | **Inline Comments** | Select lines → Comment → Send to AI |
 | **Scope View** | Changes grouped by function/class |
@@ -125,6 +126,7 @@ Or download from [Open VSX](https://open-vsx.org/extension/JakePark/code-squad)
 | [Claude Code](https://github.com/anthropics/claude-code) | `claude` |
 | [Codex CLI](https://github.com/openai/codex) | `codex` |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` |
+| [OpenCode](https://github.com/sst/opencode) | `opencode` |
 
 ---
 

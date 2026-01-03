@@ -1,4 +1,4 @@
-export type AIType = 'claude' | 'codex' | 'gemini';
+export type AIType = 'claude' | 'codex' | 'gemini' | 'opencode';
 
 export type AgentStatus = 'inactive' | 'idle' | 'working' | 'waiting';
 
@@ -42,6 +42,7 @@ export class AISession {
     get displayName(): string {
         if (this.type === 'claude') return 'Claude';
         if (this.type === 'codex') return 'Codex';
+        if (this.type === 'opencode') return 'OpenCode';
         return 'Gemini';
     }
 
@@ -72,6 +73,7 @@ export class AISession {
     static getDisplayName(type: AIType): string {
         if (type === 'claude') return 'Claude';
         if (type === 'codex') return 'Codex';
+        if (type === 'opencode') return 'OpenCode';
         return 'Gemini';
     }
 }

@@ -122,7 +122,7 @@ export interface CommentInfo {
  */
 export interface AIStatus {
     active: boolean;
-    type?: 'claude' | 'codex' | 'gemini' | string;
+    type?: 'claude' | 'codex' | 'gemini' | 'opencode' | string;
 }
 
 /**
