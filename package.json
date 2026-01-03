@@ -26,6 +26,7 @@
     "claude code",
     "codex cli",
     "gemini cli",
+    "opencode",
     "vibe coding",
     "multi-agent",
     "parallel",
@@ -81,7 +82,7 @@
         "codeSquad.autoDetect": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically detect Claude Code, Codex, and Gemini CLI execution"
+          "description": "Automatically detect Claude Code, Codex, Gemini CLI, and OpenCode execution"
         },
         "codeSquad.autoShowPanel": {
           "type": "boolean",

@@ -97,6 +97,42 @@ const GEMINI_PATTERNS: StatusPattern[] = [
     },
 ];
 
+// OpenCode patterns - similar to Claude Code (same underlying model)
+const OPENCODE_PATTERNS: StatusPattern[] = [
+    {
+        status: 'waiting',
+        priority: 2,
+        patterns: [
+            /Esc to cancel/i,               // Permission dialog
+            />\s*1\.\s*Yes/i,                // Permission menu option "> 1. Yes"
+            /1\.\s*Yes,\s*allow/i,           // Confirmation menu with allow
+            /Enter to select/,
+            /\(y\/n\)/i,
+            /\[Y\/n\]/i,
+            /\[y\/N\]/i,
+            /Tab\/Arrow keys/,
+            /Press Enter to continue/,
+            /Do you want to proceed\?/i,
+            /Do you want to/i,
+            /Tab\s+to\s+switch/i,            // OpenCode tab switching prompt
+        ],
+    },
+    {
+        status: 'working',
+        priority: 1,
+        patterns: [
+            /Esc to interrupt/i,
+        ],
+    },
+    {
+        status: 'idle',
+        priority: 0,
+        patterns: [
+            /^>\s*$/m,                        // Empty prompt (> ) - multiline mode
+        ],
+    },
+];
+
 const GENERIC_PATTERNS: StatusPattern[] = [
     {
         status: 'waiting',
@@ -119,6 +155,16 @@ const GENERIC_PATTERNS: StatusPattern[] = [
 // AI type detection patterns - used to identify which AI CLI is running
 // These patterns match startup banners and unique UI elements
 const AI_TYPE_PATTERNS: { type: AIType; patterns: RegExp[] }[] = [
+    {
+        type: 'opencode',
+        patterns: [
+            /OpenCode/i,                      // OpenCode banner
+            /opencode\.ai/i,                  // OpenCode domain reference
+            /\/connect/i,                     // OpenCode /connect command
+            /\/init/i,                        // OpenCode /init command
+            /AGENTS\.md/i,                    // OpenCode agents file reference
+        ],
+    },
     {
         type: 'gemini',
         patterns: [
@@ -157,6 +203,8 @@ function getPatternsForAI(aiType: AIType): StatusPattern[] {
             return CODEX_PATTERNS;
         case 'gemini':
             return GEMINI_PATTERNS;
+        case 'opencode':
+            return OPENCODE_PATTERNS;
         default:
             return GENERIC_PATTERNS;
     }

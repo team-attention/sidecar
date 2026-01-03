@@ -202,6 +202,9 @@ export class AIDetectionController {
             } else if (this.isGeminiCommand(commandLine)) {
                 this.log('🤖 Gemini CLI detected!');
                 await this.promptAndActivateCodeSquad('gemini', terminal);
+            } else if (this.isOpenCodeCommand(commandLine)) {
+                this.log('🤖 OpenCode detected!');
+                await this.promptAndActivateCodeSquad('opencode', terminal);
             }
         } catch (error) {
             this.logError('handleCommandStart', error);
@@ -229,10 +232,17 @@ export class AIDetectionController {
         );
     }
 
+    private isOpenCodeCommand(commandLine: string): boolean {
+        // 명령어가 opencode로 시작하는 경우 감지
+        // npx opencode, bunx opencode 등도 지원
+        return /^(npx\s+|bunx\s+|pnpx\s+)?opencode(-ai)?(\s|$)/.test(commandLine.trim());
+    }
+
     private isAICommand(commandLine: string): boolean {
         return this.isClaudeCommand(commandLine) ||
                this.isCodexCommand(commandLine) ||
-               this.isGeminiCommand(commandLine);
+               this.isGeminiCommand(commandLine) ||
+               this.isOpenCodeCommand(commandLine);
     }
 
     /**
@@ -796,6 +806,9 @@ export class AIDetectionController {
         }
         if (lowerName.includes('gemini')) {
             return 'gemini';
+        }
+        if (lowerName.includes('opencode')) {
+            return 'opencode';
         }
         return 'claude';
     }

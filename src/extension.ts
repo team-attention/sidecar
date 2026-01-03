@@ -213,6 +213,8 @@ export function activate(context: vscode.ExtensionContext) {
             detectedType = 'gemini';
         } else if (baseCommand === 'codex') {
             detectedType = 'codex';
+        } else if (baseCommand === 'opencode' || baseCommand.startsWith('opencode-')) {
+            detectedType = 'opencode';
         }
 
         if (detectedType && session.session.type !== detectedType) {
@@ -231,7 +233,8 @@ export function activate(context: vscode.ExtensionContext) {
 
         const isAICLI = baseCommand === 'claude' || baseCommand.startsWith('claude-') ||
                         baseCommand === 'gemini' ||
-                        baseCommand === 'codex';
+                        baseCommand === 'codex' ||
+                        baseCommand === 'opencode' || baseCommand.startsWith('opencode-');
 
         if (isAICLI) {
             // Clear status detection state

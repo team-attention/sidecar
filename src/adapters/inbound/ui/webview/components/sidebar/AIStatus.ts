@@ -7,7 +7,7 @@
 
 export interface AIStatusData {
   active: boolean;
-  type?: 'claude' | 'codex' | 'gemini' | string;
+  type?: 'claude' | 'codex' | 'gemini' | 'opencode' | string;
 }
 
 export type AgentStatus = 'working' | 'idle' | 'waiting' | 'error';
@@ -35,7 +35,9 @@ export function renderAIStatus(aiStatus: AIStatusData): void {
           ? 'Codex'
           : aiStatus.type === 'gemini'
             ? 'Gemini'
-            : aiStatus.type;
+            : aiStatus.type === 'opencode'
+              ? 'OpenCode'
+              : aiStatus.type;
     typeEl.textContent = label;
     badge.classList.add('active');
   } else {
