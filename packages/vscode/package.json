@@ -1,0 +1,170 @@
+{
+  "name": "code-squad",
+  "displayName": "Code Squad",
+  "description": "Immersive multi-agent coding - manage parallel AI sessions without context switching",
+  "version": "0.1.27",
+  "publisher": "JakePark",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/team-attention/code-squad.git"
+  },
+  "license": "MIT",
+  "icon": "assets/code-squad-icon.png",
+  "engines": {
+    "vscode": "^1.93.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Other"
+  ],
+  "keywords": [
+    "codesquad",
+    "code-squad",
+    "code squad",
+    "ai",
+    "ai coding",
+    "claude code",
+    "codex cli",
+    "gemini cli",
+    "opencode",
+    "vibe coding",
+    "multi-agent",
+    "parallel",
+    "terminal"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codeSquad",
+          "title": "Code Squad",
+          "icon": "assets/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codeSquad": [
+        {
+          "type": "webview",
+          "id": "codeSquadThreadList",
+          "name": "Threads",
+          "icon": "$(list-tree)",
+          "contextualTitle": "Code Squad Threads"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codeSquad.openSidebar",
+        "title": "Code Squad: Open Sidebar"
+      },
+      {
+        "command": "codeSquad.resetAutoOpen",
+        "title": "Code Squad: Reset Auto-Open Setting"
+      },
+      {
+        "command": "codeSquad.attachToTerminal",
+        "title": "Code Squad: Attach to Terminal"
+      },
+      {
+        "command": "codeSquad.createAgent",
+        "title": "Code Squad: Create New Agent",
+        "icon": "$(add)"
+      }
+    ],
+    "configuration": {
+      "title": "Code Squad",
+      "properties": {
+        "codeSquad.autoDetect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically detect Claude Code, Codex, Gemini CLI, and OpenCode execution"
+        },
+        "codeSquad.autoShowPanel": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically show Code Squad panel when AI is detected"
+        },
+        "codeSquad.includeFiles": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns for files to track even if they are gitignored (e.g., ['dist/**', '.env.local'])"
+        },
+        "codeSquad.fileWatchDebounceMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 0,
+          "maximum": 2000,
+          "deprecationMessage": "Deprecated. Use codeSquad.fileWatchBatchWindowMs and codeSquad.fileWatchBatchIdleMs instead.",
+          "description": "DEPRECATED: Per-file debounce delay. Replaced by batch settings."
+        },
+        "codeSquad.fileWatchBatchWindowMs": {
+          "type": "number",
+          "default": 100,
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Maximum time to batch file change events before processing (ms). Higher values batch more aggressively."
+        },
+        "codeSquad.fileWatchBatchIdleMs": {
+          "type": "number",
+          "default": 50,
+          "minimum": 0,
+          "maximum": 500,
+          "description": "Idle time after last file event before batch flush (ms). Lower values provide faster response for single file changes."
+        },
+        "codeSquad.worktreeCopyPatterns": {
+          "type": "array",
+          "default": [],
+          "scope": "machine-overridable",
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns for files to copy from main workspace to worktrees (e.g., ['.env*', 'config/**'])"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run esbuild-base -- --minify && npm run esbuild-webview -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "esbuild-webview": "esbuild ./src/adapters/inbound/ui/webview/webview-entry.ts --bundle --outfile=dist/webview.js --format=iife --platform=browser --target=es2020",
+    "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-webview -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "build": "npm run esbuild",
+    "compile": "tsc -p ./",
+    "type-check": "tsc --noEmit",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "test:unit": "tsx node_modules/mocha/bin/mocha --ui tdd ./src/test/**/*.test.ts",
+    "package": "npx vsce package --no-dependencies",
+    "clean": "rimraf dist out"
+  },
+  "dependencies": {
+    "@code-squad/core": "workspace:*",
+    "fast-glob": "^3.3.3",
+    "ignore": "^5.3.2",
+    "shiki": "^3.19.0"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.93.0",
+    "@typescript-eslint/eslint-plugin": "^7.14.1",
+    "@typescript-eslint/parser": "^7.11.0",
+    "esbuild": "^0.27.0",
+    "eslint": "^8.57.0",
+    "mocha": "^11.0.1",
+    "rimraf": "^6.1.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.5"
+  }
+}

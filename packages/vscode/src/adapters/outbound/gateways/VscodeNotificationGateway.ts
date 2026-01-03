@@ -1,0 +1,22 @@
+import * as vscode from 'vscode';
+import { INotificationPort } from '@code-squad/core';
+
+export class VscodeNotificationGateway implements INotificationPort {
+    showInfo(message: string): void {
+        vscode.window.showInformationMessage(message);
+    }
+
+    showWarning(message: string): void {
+        vscode.window.showWarningMessage(message);
+    }
+
+    showError(message: string): void {
+        vscode.window.showErrorMessage(message);
+    }
+
+    showSystemNotification(title: string, message: string, onClick?: () => void): void {
+        vscode.window.showInformationMessage(`${title}: ${message}`).then(() => {
+            onClick?.();
+        });
+    }
+}

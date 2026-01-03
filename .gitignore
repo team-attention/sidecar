@@ -1,12 +1,19 @@
 # Dependencies
 node_modules/
+.pnpm-store/
+packages/*/node_modules/
 
 # Build output
 out/
 dist/
+packages/*/dist/
+packages/*/out/
 
 # VSCode extension package
 *.vsix
+
+# Backup
+src.bak/
 
 # IDE/Editor settings
 .vscode/

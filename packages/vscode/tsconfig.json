@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "lib": [
+      "ES2022"
+    ],
+    "outDir": "./out",
+    "rootDir": "./src",
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "out",
+    "dist",
+    "src/adapters/inbound/ui/webview/webview-entry.ts",
+    "src/adapters/inbound/ui/webview/webview-app.ts",
+    "src/adapters/inbound/ui/webview/state",
+    "src/adapters/inbound/ui/webview/utils",
+    "src/adapters/inbound/ui/webview/components",
+    "src/adapters/inbound/ui/webview/core"
+  ],
+  "references": [
+    { "path": "../core" }
+  ]
+}
