@@ -136,7 +136,7 @@
     "build": "pnpm -r build",
     "build:core": "pnpm --filter @code-squad/core build",
     "build:vscode": "pnpm --filter @code-squad/vscode build",
-    "package": "pnpm --filter @code-squad/vscode run esbuild && cd packages/vscode && npx vsce package --no-dependencies",
+    "package": "pnpm --filter @code-squad/vscode run esbuild && pnpm --filter @code-squad/vscode run package",
     "type-check": "pnpm -r type-check",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
@@ -156,6 +156,7 @@
     "esbuild": "^0.27.0",
     "eslint": "^8.57.0",
     "mocha": "^11.0.1",
+    "rimraf": "^6.1.2",
     "typescript": "^5.4.5"
   }
 }

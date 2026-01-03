@@ -8,12 +8,13 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist",
+    "clean": "rimraf dist",
     "test": "tsx node_modules/mocha/bin/mocha --ui tdd ./src/test/**/*.test.ts"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "mocha": "^11.0.1",
+    "rimraf": "^6.1.2",
     "tsx": "^4.21.0",
     "typescript": "^5.3.0"
   }

@@ -144,7 +144,9 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
-    "test:unit": "tsx node_modules/mocha/bin/mocha --ui tdd ./src/test/**/*.test.ts"
+    "test:unit": "tsx node_modules/mocha/bin/mocha --ui tdd ./src/test/**/*.test.ts",
+    "package": "npx vsce package --no-dependencies",
+    "clean": "rimraf dist out"
   },
   "dependencies": {
     "@code-squad/core": "workspace:*",
@@ -161,6 +163,7 @@
     "esbuild": "^0.27.0",
     "eslint": "^8.57.0",
     "mocha": "^11.0.1",
+    "rimraf": "^6.1.2",
     "tsx": "^4.21.0",
     "typescript": "^5.4.5"
   }
