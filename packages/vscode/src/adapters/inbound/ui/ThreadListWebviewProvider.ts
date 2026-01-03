@@ -1,0 +1,473 @@
+import * as vscode from 'vscode';
+import * as path from 'path';
+import {
+    SessionContext,
+    AgentStatus,
+    IsolationMode,
+} from '@code-squad/core';
+
+interface ThreadInfo {
+    id: string;
+    name: string;
+    status: AgentStatus;
+    fileCount: number;
+    isSelected: boolean;
+    workingDir: string;
+    hasWorktree: boolean;
+    threadId: string;
+    isolationMode: 'local' | 'branch' | 'worktree';
+    branchName?: string;
+}
+
+export interface CreateThreadOptions {
+    name: string;
+    isolationMode: IsolationMode;
+    branchName?: string;
+    worktreePath?: string;
+}
+
+export class ThreadListWebviewProvider implements vscode.WebviewViewProvider {
+    public static readonly viewType = 'codeSquadThreadList';
+
+    private view?: vscode.WebviewView;
+    private selectedId: string = '';
+
+    constructor(
+        private readonly extensionUri: vscode.Uri,
+        private readonly getSessions: () => Map<string, SessionContext>,
+        private readonly onSelectThread: (id: string) => void,
+        private readonly onCreateThread: (options: CreateThreadOptions) => void,
+        private readonly onOpenNewTerminal: (id: string) => void,
+        private readonly onAttachToWorktree: () => void,
+        private readonly onDeleteThread?: (threadId: string) => void,
+        private readonly onOpenInEditor?: (threadId: string) => void,
+        private readonly getAvailableWorktreeCount?: () => Promise<number>,
+        private readonly getDefaultIsolationMode?: () => IsolationMode
+    ) {}
+
+    resolveWebviewView(
+        webviewView: vscode.WebviewView,
+        _context: vscode.WebviewViewResolveContext,
+        _token: vscode.CancellationToken
+    ): void {
+        this.view = webviewView;
+
+        webviewView.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [this.extensionUri]
+        };
+
+        webviewView.webview.html = this.getHtmlContent();
+
+        webviewView.webview.onDidReceiveMessage((message) => {
+            switch (message.type) {
+                case 'webviewReady':
+                    // Webview is ready to receive messages, send initial data
+                    this.sendWorkspaceInfo();
+                    this.refresh();
+                    break;
+                case 'selectThread':
+                    this.onSelectThread(message.id);
+                    break;
+                case 'createThread':
+                    this.onCreateThread({
+                        name: message.name,
+                        isolationMode: message.isolationMode,
+                        branchName: message.branchName,
+                        worktreePath: message.worktreePath,
+                    });
+                    break;
+                case 'openNewTerminal':
+                    this.onOpenNewTerminal(message.id);
+                    break;
+                case 'attachToWorktree':
+                    this.onAttachToWorktree();
+                    break;
+                case 'deleteThread':
+                    if (this.onDeleteThread) {
+                        this.onDeleteThread(message.threadId);
+                    }
+                    break;
+                case 'openInEditor':
+                    if (this.onOpenInEditor) {
+                        this.onOpenInEditor(message.threadId);
+                    }
+                    break;
+            }
+        });
+    }
+
+    setSelectedId(id: string): void {
+        this.selectedId = id;
+        this.refresh();
+    }
+
+    async refresh(): Promise<void> {
+        if (!this.view) return;
+
+        const threads = this.buildThreadList();
+        const availableWorktreeCount = await this.getAvailableWorktreeCount?.() ?? 0;
+
+        this.view.webview.postMessage({
+            type: 'updateThreads',
+            threads,
+            availableWorktreeCount
+        });
+    }
+
+    private sendWorkspaceInfo(): void {
+        if (!this.view) return;
+
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const workspaceName = workspaceRoot ? path.basename(workspaceRoot) : '';
+        const defaultIsolationMode = this.getDefaultIsolationMode?.() ?? 'none';
+
+        this.view.webview.postMessage({
+            type: 'workspaceInfo',
+            workspaceName,
+            defaultIsolationMode
+        });
+    }
+
+    private buildThreadList(): ThreadInfo[] {
+        const sessions = this.getSessions();
+        const threads: ThreadInfo[] = [];
+
+        // Add individual threads
+        for (const [terminalId, ctx] of sessions) {
+            const session = ctx.session;
+            const metadata = session.agentMetadata;
+            const threadState = ctx.threadState;
+            const fileCount = ctx.stateManager.getState().sessionFiles.length;
+
+            // Name priority: threadState.name > agentMetadata.name > session.displayName
+            const name = threadState?.name ?? metadata?.name ?? session.displayName;
+
+            // Working directory priority: worktreePath > workspaceRoot
+            const workingDir = threadState?.worktreePath || ctx.workspaceRoot;
+
+            // Determine isolation mode from threadState
+            let isolationMode: 'local' | 'branch' | 'worktree' = 'local';
+            if (threadState?.worktreePath) {
+                isolationMode = 'worktree';
+            } else if (threadState?.branch) {
+                isolationMode = 'branch';
+            }
+
+            threads.push({
+                id: terminalId,
+                name,
+                status: metadata?.status ?? 'inactive',
+                fileCount,
+                isSelected: this.selectedId === terminalId,
+                workingDir,
+                hasWorktree: !!threadState?.worktreePath,
+                threadId: threadState?.threadId ?? '',
+                isolationMode,
+                branchName: threadState?.branch
+            });
+        }
+
+        return threads;
+    }
+
+    private getHtmlContent(): string {
+        const nonce = this.getNonce();
+        const cspSource = this.view!.webview.cspSource;
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}'; font-src ${cspSource};">
+    <style nonce="${nonce}">
+        *{margin:0;padding:0;box-sizing:border-box}
+        html,body{font-family:var(--vscode-font-family);font-size:13px;color:var(--vscode-foreground);background:var(--vscode-sideBar-background);overflow-x:hidden;width:100%;padding:0!important;margin:0!important}
+        .section{border-bottom:1px solid var(--vscode-panel-border)}
+        .section-header{display:flex;align-items:center;padding:6px 0;cursor:pointer;user-select:none;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--vscode-sideBarSectionHeader-foreground)}
+        .section-header:hover{background:var(--vscode-list-hoverBackground)}
+        .section-header .codicon{font-size:16px;margin-right:2px}
+        .section-content{padding:8px 12px 12px 12px}
+        .section-content.collapsed{display:none}
+        .form-group{margin-bottom:10px}
+        .form-group.hidden{display:none}
+        .form-row{display:flex;gap:8px;margin-bottom:10px}
+        .form-row .form-group{margin-bottom:0;flex:1}
+        .form-row .form-group.isolation{flex:0 0 90px}
+        .form-label{display:block;font-size:11px;text-transform:uppercase;color:var(--vscode-descriptionForeground);margin-bottom:4px}
+        .form-input,.form-select{width:100%;background:var(--vscode-input-background);border:1px solid var(--vscode-input-border);color:var(--vscode-input-foreground);padding:4px 6px;font-size:13px}
+        .form-input:focus,.form-select:focus{outline:none;border-color:var(--vscode-focusBorder)}
+        .form-input::placeholder{color:var(--vscode-input-placeholderForeground)}
+        .submit-button{width:100%;background:var(--vscode-button-background);color:var(--vscode-button-foreground);border:none;padding:6px 12px;font-size:13px;cursor:pointer;margin-top:8px}
+        .submit-button:hover{background:var(--vscode-button-hoverBackground)}
+        .submit-button.secondary-button{background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground);margin-top:4px}
+        .submit-button.secondary-button:hover{background:var(--vscode-button-secondaryHoverBackground)}
+        .thread-item{display:flex;flex-direction:column;padding:8px 12px;cursor:pointer;min-height:44px}
+        .thread-main{display:flex;align-items:center;gap:10px}
+        .thread-item:hover{background:var(--vscode-list-hoverBackground)}
+        .thread-item.selected{background:var(--vscode-list-activeSelectionBackground);color:var(--vscode-list-activeSelectionForeground)}
+        .thread-item.waiting{animation:bg-blink 1s ease-in-out infinite}
+        @keyframes bg-blink{0%,100%{background:rgba(204,167,0,0.15)}50%{background:transparent}}
+        .thread-icon{width:16px;text-align:center;flex-shrink:0}
+        .thread-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .thread-status{display:flex;align-items:center;justify-content:center;width:24px;height:24px;font-size:10px;flex-shrink:0}
+        .thread-status.inactive{color:var(--vscode-disabledForeground)}
+        .thread-status.idle{color:var(--vscode-charts-blue,#3794ff)}
+        .thread-status.working{color:var(--vscode-charts-green,#89d185);animation:pulse 1.5s ease-in-out infinite;text-shadow:0 0 8px var(--vscode-charts-green,#89d185)}
+        .thread-status.waiting{color:var(--vscode-charts-yellow,#cca700);animation:blink 1s ease-in-out infinite}
+        @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(1.2)}}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+        .thread-file-count{font-size:11px;color:var(--vscode-descriptionForeground);flex-shrink:0}
+        .thread-actions{display:flex;gap:2px;opacity:0;transition:opacity 0.15s;flex-shrink:0}
+        .thread-item:hover .thread-actions{opacity:1}
+        .thread-action-btn{display:flex;align-items:center;justify-content:center;width:22px;height:22px;font-size:11px;color:var(--vscode-descriptionForeground);background:transparent;border:none;cursor:pointer;border-radius:3px}
+        .thread-action-btn:hover{color:var(--vscode-foreground);background:var(--vscode-toolbar-hoverBackground)}
+        .thread-action-btn.delete:hover{color:var(--vscode-errorForeground)}
+        .empty-msg{padding:8px 12px;color:var(--vscode-descriptionForeground);font-style:italic}
+        /* Isolation mode badges */
+        .thread-isolation{font-size:10px;color:var(--vscode-descriptionForeground);padding-left:34px;margin-top:2px;display:flex;align-items:center;gap:4px}
+        .isolation-badge{display:inline-block;padding:1px 4px;border-radius:2px;font-size:9px;text-transform:uppercase;font-weight:500}
+        .isolation-badge.local{background:var(--vscode-badge-background);color:var(--vscode-badge-foreground)}
+        .isolation-badge.branch{background:rgba(55,148,255,0.2);color:var(--vscode-charts-blue,#3794ff)}
+        .isolation-badge.worktree{background:rgba(137,209,133,0.2);color:var(--vscode-charts-green,#89d185)}
+        .thread-branch-name{opacity:0.8}
+    </style>
+</head>
+<body>
+    <div class="section">
+        <div class="section-header" data-section="new">
+            <span class="codicon">▾</span> New Thread
+        </div>
+        <div class="section-content" id="newContent">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Thread Name</label>
+                    <input type="text" class="form-input" id="threadName" placeholder="e.g., feat/add-login">
+                </div>
+                <div class="form-group isolation">
+                    <label class="form-label">Isolation</label>
+                    <select class="form-select" id="isolationMode">
+                        <option value="none">Local</option>
+                        <option value="worktree">Worktree</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group hidden" id="branchGroup">
+                <label class="form-label">Branch Name</label>
+                <input type="text" class="form-input" id="branchName" placeholder="branch-name">
+            </div>
+            <div class="form-group hidden" id="pathGroup">
+                <label class="form-label">Worktree Path</label>
+                <input type="text" class="form-input" id="worktreePath" placeholder="../project.worktree/branch-name">
+            </div>
+            <button class="submit-button" id="startBtn">Start Thread</button>
+            <button class="submit-button secondary-button" id="attachBtn">Attach to Worktree</button>
+        </div>
+    </div>
+    <div class="section">
+        <div class="section-header" data-section="threads">
+            <span class="codicon">▾</span> Agent Threads
+        </div>
+        <div class="section-content" id="threadsContent" style="padding:0">
+            <div id="threadList"><div class="empty-msg">No threads yet</div></div>
+        </div>
+    </div>
+<script nonce="${nonce}">
+const vscode = acquireVsCodeApi();
+const $ = id => document.getElementById(id);
+const threadName = $('threadName');
+const branchName = $('branchName');
+const branchGroup = $('branchGroup');
+const worktreePath = $('worktreePath');
+const pathGroup = $('pathGroup');
+const isolationMode = $('isolationMode');
+const threadList = $('threadList');
+
+let workspaceName = '';
+
+
+function updateWorktreePath() {
+    if (!worktreePath.dataset.edited && workspaceName) {
+        const branch = branchName.value || threadName.value;
+        worktreePath.value = branch ? '../' + workspaceName + '.worktree/' + branch : '';
+    }
+}
+
+// Sync branch name with thread name
+threadName.addEventListener('input', () => {
+    if (!branchName.dataset.edited) {
+        branchName.value = threadName.value;
+    }
+    updateWorktreePath();
+});
+branchName.addEventListener('input', () => {
+    branchName.dataset.edited = branchName.value !== threadName.value ? '1' : '';
+    updateWorktreePath();
+});
+worktreePath.addEventListener('input', () => {
+    const defaultPath = '../' + workspaceName + '.worktree/' + (branchName.value || threadName.value);
+    worktreePath.dataset.edited = worktreePath.value !== defaultPath ? '1' : '';
+});
+
+// Toggle branch name and path inputs based on isolation mode
+isolationMode.addEventListener('change', () => {
+    const show = isolationMode.value !== 'none';
+    branchGroup.classList.toggle('hidden', !show);
+    pathGroup.classList.toggle('hidden', !show);
+    if (show) {
+        if (!branchName.value) branchName.value = threadName.value;
+        updateWorktreePath();
+    }
+});
+
+// Toggle sections
+document.querySelectorAll('.section-header').forEach(h => {
+    h.addEventListener('click', () => {
+        const content = h.nextElementSibling;
+        const icon = h.querySelector('.codicon');
+        const collapsed = content.classList.toggle('collapsed');
+        icon.textContent = collapsed ? '▸' : '▾';
+    });
+});
+
+// Create thread
+$('startBtn').addEventListener('click', () => {
+    const name = threadName.value.trim();
+    if (!name) { threadName.focus(); return; }
+
+    const mode = isolationMode.value;
+    const path = worktreePath.value.trim();
+
+    vscode.postMessage({
+        type: 'createThread',
+        name,
+        isolationMode: mode,
+        branchName: mode !== 'none' ? (branchName.value.trim() || name) : undefined,
+        worktreePath: mode !== 'none' && path ? path : undefined
+    });
+
+    threadName.value = '';
+    branchName.value = '';
+    branchName.dataset.edited = '';
+    worktreePath.value = '';
+    worktreePath.dataset.edited = '';
+});
+
+threadName.addEventListener('keydown', e => { if (e.key === 'Enter') $('startBtn').click(); });
+
+// Attach to worktree
+$('attachBtn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'attachToWorktree' });
+});
+
+// Status icon and title mappings
+function getStatusIcon(status) {
+    switch (status) {
+        case 'inactive': return '\u25CB';  // ○ Empty circle
+        case 'idle': return '\u25CF';      // ● Filled circle
+        case 'working': return '\u25CF';   // ● Filled circle (animated)
+        case 'waiting': return '\u25CF';   // ● Filled circle
+        default: return '\u25CB';
+    }
+}
+
+function getStatusTitle(status) {
+    switch (status) {
+        case 'inactive': return 'No AI agent';
+        case 'idle': return 'AI idle - ready for input';
+        case 'working': return 'AI working...';
+        case 'waiting': return 'AI waiting for answer';
+        default: return '';
+    }
+}
+
+
+// Render threads
+function render(threads) {
+    if (!threads.length) {
+        threadList.innerHTML = '<div class="empty-msg">No threads yet</div>';
+        return;
+    }
+
+    threadList.innerHTML = threads.reverse().map(t => {
+        const isolationLabel = t.isolationMode === 'worktree' ? 'Worktree'
+            : t.isolationMode === 'branch' ? 'Branch'
+            : 'Local';
+
+        return '<div class="thread-item ' + t.status + (t.isSelected ? ' selected' : '') + '" data-id="' + t.id + '" data-thread-id="' + t.threadId + '" data-has-worktree="' + t.hasWorktree + '">' +
+            '<div class="thread-main">' +
+            '<span class="thread-status ' + t.status + '" title="' + getStatusTitle(t.status) + '">' + getStatusIcon(t.status) + '</span>' +
+            '<span class="thread-name">' + esc(t.name) + '</span>' +
+            '<div class="thread-actions">' +
+            '<button class="thread-action-btn terminal" title="Open Terminal"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M3 3l4 4-4 4v-1l3-3-3-3V3zm5 7h5v1H8v-1z"/></svg></button>' +
+            (t.hasWorktree ? '<button class="thread-action-btn editor" title="Open in Editor"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1H10v1H2v12h12V6h1v8.5l-.5.5h-13l-.5-.5v-13l.5-.5z"/><path d="M15 1.5V5h-1V2.707L8.354 8.354l-.708-.708L13.293 2H11V1h3.5l.5.5z"/></svg></button>' : '') +
+            '<button class="thread-action-btn delete" title="Cleanup">\uD83D\uDDD1\uFE0F</button>' +
+            '</div>' +
+            '</div>' +
+            '<div class="thread-isolation">' +
+            '<span class="isolation-badge ' + t.isolationMode + '">' + isolationLabel + '</span>' +
+            (t.branchName ? '<span class="thread-branch-name">' + esc(t.branchName) + '</span>' : '') +
+            '</div>' +
+            '</div>';
+    }).join('');
+
+    threadList.querySelectorAll('.thread-item').forEach(el => {
+        const threadId = el.dataset.threadId;
+        el.addEventListener('click', () => vscode.postMessage({ type: 'selectThread', id: el.dataset.id }));
+        el.querySelector('.terminal').addEventListener('click', (e) => {
+            e.stopPropagation();
+            vscode.postMessage({ type: 'openNewTerminal', id: el.dataset.id });
+        });
+        const editorBtn = el.querySelector('.editor');
+        if (editorBtn) {
+            editorBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                vscode.postMessage({ type: 'openInEditor', threadId });
+            });
+        }
+        el.querySelector('.delete').addEventListener('click', (e) => {
+            e.stopPropagation();
+            vscode.postMessage({ type: 'deleteThread', threadId });
+        });
+    });
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+window.addEventListener('message', e => {
+    if (e.data.type === 'updateThreads') {
+        render(e.data.threads);
+        // Hide attach button if no worktrees available
+        const attachBtn = $('attachBtn');
+        if (attachBtn) {
+            attachBtn.style.display = e.data.availableWorktreeCount > 0 ? '' : 'none';
+        }
+    }
+    if (e.data.type === 'workspaceInfo') {
+        workspaceName = e.data.workspaceName || '';
+        // Set default isolation mode
+        if (e.data.defaultIsolationMode) {
+            isolationMode.value = e.data.defaultIsolationMode;
+            const show = isolationMode.value !== 'none';
+            branchGroup.classList.toggle('hidden', !show);
+            pathGroup.classList.toggle('hidden', !show);
+        }
+    }
+});
+
+// Notify extension that webview is ready to receive messages
+vscode.postMessage({ type: 'webviewReady' });
+</script>
+</body>
+</html>`;
+    }
+
+    private getNonce(): string {
+        let text = '';
+        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        for (let i = 0; i < 32; i++) {
+            text += possible.charAt(Math.floor(Math.random() * possible.length));
+        }
+        return text;
+    }
+}

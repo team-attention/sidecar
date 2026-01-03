@@ -1,6 +1,5 @@
 {
-  "private": true,
-  "name": "code-squad",
+  "name": "@code-squad/vscode",
   "displayName": "Code Squad",
   "description": "Immersive multi-agent coding - manage parallel AI sessions without context switching",
   "version": "0.1.26",
@@ -133,16 +132,22 @@
     }
   },
   "scripts": {
-    "build": "pnpm -r build",
-    "build:core": "pnpm --filter @code-squad/core build",
-    "build:vscode": "pnpm --filter @code-squad/vscode build",
-    "package": "pnpm --filter @code-squad/vscode run esbuild && cd packages/vscode && npx vsce package --no-dependencies",
-    "type-check": "pnpm -r type-check",
-    "test": "pnpm -r test",
-    "lint": "pnpm -r lint",
-    "clean": "pnpm -r run clean"
+    "vscode:prepublish": "npm run esbuild-base -- --minify && npm run esbuild-webview -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "esbuild-webview": "esbuild ./src/adapters/inbound/ui/webview/webview-entry.ts --bundle --outfile=dist/webview.js --format=iife --platform=browser --target=es2020",
+    "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-webview -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "build": "npm run esbuild",
+    "compile": "tsc -p ./",
+    "type-check": "tsc --noEmit",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "test:unit": "tsx node_modules/mocha/bin/mocha --ui tdd ./src/test/**/*.test.ts"
   },
   "dependencies": {
+    "@code-squad/core": "workspace:*",
     "fast-glob": "^3.3.3",
     "ignore": "^5.3.2",
     "shiki": "^3.19.0"
@@ -156,6 +161,7 @@
     "esbuild": "^0.27.0",
     "eslint": "^8.57.0",
     "mocha": "^11.0.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.4.5"
   }
 }

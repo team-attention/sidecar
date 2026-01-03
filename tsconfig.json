@@ -17,11 +17,16 @@
     "exclude": [
         "node_modules",
         ".vscode-test",
+        "packages",
         "src/adapters/inbound/ui/webview/webview-entry.ts",
         "src/adapters/inbound/ui/webview/webview-app.ts",
         "src/adapters/inbound/ui/webview/state",
         "src/adapters/inbound/ui/webview/utils",
         "src/adapters/inbound/ui/webview/components",
         "src/adapters/inbound/ui/webview/core"
+    ],
+    "references": [
+        { "path": "./packages/core" },
+        { "path": "./packages/vscode" }
     ]
 }
