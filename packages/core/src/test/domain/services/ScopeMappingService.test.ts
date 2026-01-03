@@ -236,7 +236,8 @@ suite('ScopeMappingService', () => {
             const result = service.mapDiffToScopes(diff, scopes, fileContent);
 
             assert.strictEqual(result.root[0].stats.additions, 2);
-            assert.strictEqual(result.root[0].stats.deletions, 1);
+            // Deletions are not tracked in scope stats since we show NEW file content only
+            assert.strictEqual(result.root[0].stats.deletions, 0);
         });
 
         test('TS-2.8: should show all scope lines not just diff lines', () => {

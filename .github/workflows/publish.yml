@@ -17,20 +17,33 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-      - name: Compile
-        run: npm run compile
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+
+      - name: Type check
+        run: pnpm type-check
+
+      - name: Run tests
+        run: pnpm --filter @code-squad/core test && pnpm --filter code-squad test:unit
 
       - name: Install vsce
         run: npm install -g @vscode/vsce
 
       - name: Publish to VS Code Marketplace
-        run: vsce publish -p ${{ secrets.VSCE_PAT }}
+        working-directory: packages/vscode
+        run: vsce publish -p ${{ secrets.VSCE_PAT }} --no-dependencies
 
       - name: Install ovsx
         run: npm install -g ovsx
 
       - name: Publish to Open VSX (Cursor)
-        run: ovsx publish -p ${{ secrets.OVSX_PAT }}
+        working-directory: packages/vscode
+        run: ovsx publish -p ${{ secrets.OVSX_PAT }} --no-dependencies

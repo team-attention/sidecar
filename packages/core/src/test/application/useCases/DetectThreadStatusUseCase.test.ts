@@ -212,7 +212,8 @@ suite('DetectThreadStatusUseCase', () => {
             done();
         });
 
-        test('transitions to idle after output silence', (done) => {
+        test('transitions to idle after output silence', function (done) {
+            this.timeout(5000);
             const statuses: AgentStatus[] = [];
             useCase.onStatusChange((_terminalId, status) => {
                 statuses.push(status);
@@ -222,17 +223,18 @@ suite('DetectThreadStatusUseCase', () => {
             useCase.processOutput('terminal-1', 'claude', 'Reticulating... (esc to interrupt)');
             assert.strictEqual(useCase.getStatus('terminal-1'), 'working');
 
-            // Wait for timeout (500ms) - should transition to idle
+            // Wait for timeout (2000ms) - should transition to idle
             setTimeout(() => {
                 assert.strictEqual(useCase.getStatus('terminal-1'), 'idle');
                 assert.strictEqual(statuses.length, 2);
                 assert.strictEqual(statuses[0], 'working');
                 assert.strictEqual(statuses[1], 'idle');
                 done();
-            }, 600);
+            }, 2100);
         });
 
-        test('transitions to waiting after tool execution with no completion', (done) => {
+        test('transitions to waiting after tool execution with no completion', function (done) {
+            this.timeout(5000);
             const statuses: AgentStatus[] = [];
             useCase.onStatusChange((_terminalId, status) => {
                 statuses.push(status);
@@ -242,7 +244,7 @@ suite('DetectThreadStatusUseCase', () => {
             useCase.processOutput('terminal-1', 'claude', '⏺ Write(README.md)\n\nfile contents here...');
             assert.strictEqual(useCase.getStatus('terminal-1'), 'working');
 
-            // Wait for timeout (500ms) - should transition to waiting (not idle)
+            // Wait for timeout (2000ms) - should transition to waiting (not idle)
             // because tool was in progress and no completion pattern was seen
             setTimeout(() => {
                 assert.strictEqual(useCase.getStatus('terminal-1'), 'waiting');
@@ -250,7 +252,7 @@ suite('DetectThreadStatusUseCase', () => {
                 assert.strictEqual(statuses[0], 'working');
                 assert.strictEqual(statuses[1], 'waiting');
                 done();
-            }, 600);
+            }, 2100);
         });
 
         test('transitions to idle after tool execution with completion', (done) => {
@@ -274,7 +276,8 @@ suite('DetectThreadStatusUseCase', () => {
             done();
         });
 
-        test('Bash tool execution triggers waiting on timeout', (done) => {
+        test('Bash tool execution triggers waiting on timeout', function (done) {
+            this.timeout(5000);
             const statuses: AgentStatus[] = [];
             useCase.onStatusChange((_terminalId, status) => {
                 statuses.push(status);
@@ -284,11 +287,11 @@ suite('DetectThreadStatusUseCase', () => {
             useCase.processOutput('terminal-1', 'claude', '⏺ Bash(npm install)');
             assert.strictEqual(useCase.getStatus('terminal-1'), 'working');
 
-            // Wait for timeout - should go to waiting
+            // Wait for timeout (2000ms) - should go to waiting
             setTimeout(() => {
                 assert.strictEqual(useCase.getStatus('terminal-1'), 'waiting');
                 done();
-            }, 600);
+            }, 2100);
         });
     });
 
